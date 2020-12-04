@@ -44,7 +44,7 @@ static int login_callback(void *NotUsed, int argc, char **argv, char **azColName
     return 0;
 }
 
-int autentificare_utilizator(sqlite3* db, char* nume_utilizator, char* parola) {
+void autentificare_utilizator(sqlite3* db, char* nume_utilizator, char* parola) {
    char sql_query[512] = "SELECT user_id, admin_status FROM users WHERE username = '";
    char* mesaj_eroare;
 
@@ -57,7 +57,60 @@ int autentificare_utilizator(sqlite3* db, char* nume_utilizator, char* parola) {
    int db_descriptor = sqlite3_exec(db, sql_query, login_callback, 0, &mesaj_eroare);
 }
 
+char* itoa(int number) {
+    char* sir = (char*) malloc(8 * sizeof(char));
+    int idx = 0;
+    do {
+        sir[idx++] = '0' + (number % 10);
+        number /= 10;
+    } while (number > 0);
+    
+    sir[idx] = '\0';
+    for (int i = 0; i < idx / 2; ++i) {
+        char tmp = sir[i];
+        sir[i] = sir[idx - i - 1];
+        sir[idx - i - 1] = tmp;
+    }
+
+    return (char*)sir;
+}
+
+void inserare_melodie(char date_melodie[6][512], int user_id) {
+    char sql_query[512 * 7] = "INSERT INTO SONGS (user_id, title, author, release_year, genre, description, url, no_of_votes,      created_at) VALUES (";
+    strcat(sql_query, itoa(user_id));
+    strcat(sql_query, ", '");
+    strcat(sql_query, date_melodie[0]);
+    strcat(sql_query, "' ,'");
+    strcat(sql_query, date_melodie[1]);
+    strcat(sql_query, "' ,");
+    strcat(sql_query, date_melodie[2]);
+    strcat(sql_query, " ,'");
+    strcat(sql_query, date_melodie[3]);
+    strcat(sql_query, "' ,'");
+    strcat(sql_query, date_melodie[4]);
+    strcat(sql_query, "' ,'");
+    strcat(sql_query, date_melodie[5]);
+    strcat(sql_query, "', 0, date('now'))");
+    
+    //printf("%s", sql_query);
+    //fflush(stdout);
+    
+    char* mesaj_eroare;
+    int insert_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+
+    if (insert_status != SQLITE_OK) {
+        printf("Eroare la inserarea melodiei - %s", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    } else {
+        printf("Melodie inserata cu succes!");
+        fflush(stdout);
+    }
+}
+
 int main () {
+    printf("%s", itoa(123));
+    fflush(stdout);
     struct sockaddr_in server;	// structura folosita de server
     struct sockaddr_in from;	
     int nr;		//mesajul primit de trimis la client 
@@ -176,6 +229,62 @@ void raspunde(void *arg) {
     if (write(tdL.cl, &admin_status, sizeof(int)) <= 0) {
         perror("Eroare la trimitere admin_status catre client!");
     }
+    
+    // primesc optiunea alease de client
+    int optiune;
+    if (read(tdL.cl, &optiune, sizeof(int)) <= 0) {
+        perror("Eroare la primirea optiunii de la client!");
+    }
+
+    printf("Optiunea este: %d\n", optiune);
+    fflush(stdout);
+    
+
+    switch (optiune) {
+        case 1:
+            printf("Adaugarea unei melodii la top.\n");
+            fflush(stdout);
+
+            char date_melodie[6][512];
+            if (read(tdL.cl, date_melodie, sizeof(date_melodie)) <= 0) {
+                perror("Eroare la primirea melodiei de la client!");
+            }
+            inserare_melodie(date_melodie, user_id);
+            break;
+        case 2:
+            printf("Votarea unei melodii.\n");
+            fflush(stdout);
+            break;
+        case 3:
+            printf("Adaugarea unui comentariu.\n");
+            fflush(stdout);
+            break;
+        case 4:
+            printf("Afisarea topului general.\n");
+            fflush(stdout);
+            break;
+        case 5:
+            printf("Afisarea topului pe genuri.\n");
+            fflush(stdout);
+            break;
+        case 6:
+            printf("Stergerea unei melodii.\n");
+            fflush(stdout);
+            break;
+        case 7:
+            printf("Restrictionarea la vot a unui utilizator.\n");
+            fflush(stdout);
+            break;
+        case 8:
+            printf("Restrictionarea de a comenta a unui utulizator.\n");
+            fflush(stdout);
+            break;
+        default:
+            printf("Optiune invalida!\n");
+            fflush(stdout);
+            break;
+    }
+
 
     user_id = admin_status = -1; // resetam valorile atributelor
 }

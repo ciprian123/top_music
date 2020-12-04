@@ -13,7 +13,7 @@
 #include <netdb.h>
 #include <string.h>
 #include <arpa/inet.h>
-
+#include <time.h>
 
 /* codul de eroare returnat de anumite apeluri */
 extern int errno;
@@ -36,6 +36,39 @@ void afisare_meniu_admin() {
     printf("* Pentru restrictionarea de a comenta a unui utilizator introduceti `8`\n"); fflush(stdout);
 }
 
+void trimite_melodie_la_server(int sd) {
+    char date_melodie[6][512];
+
+    fgetc(stdin);
+    printf("Introduceti titlul melodiei: "); 
+    fgets(date_melodie[0], 128, stdin);
+    date_melodie[0][strlen(date_melodie[0]) - 1] = '\0'; // elimin de la final \n (fgets adauga \n la final) 
+
+    printf("Introduceti autorul melodiei: ");
+    fgets(date_melodie[1], 128, stdin);
+    date_melodie[1][strlen(date_melodie[1]) - 1] = '\0';
+
+    printf("Introduceti anul aparitiei melodiei: ");
+    fgets(date_melodie[2], 6, stdin);
+    date_melodie[2][strlen(date_melodie[2]) - 1] = '\0';
+
+    printf("Introduceti genul melodiei: ");
+    fgets(date_melodie[3], 512, stdin); 
+    date_melodie[3][strlen(date_melodie[3]) - 1] = '\0';
+
+    printf("Introduceti o descriere a melodiei: ");
+    fgets(date_melodie[4], 512, stdin);
+    date_melodie[4][strlen(date_melodie[4]) - 1] = '\0';
+
+    printf("Introduceti un url catre melodie: ");
+    fgets(date_melodie[5], 128, stdin);
+    date_melodie[5][strlen(date_melodie[5]) - 1] = '\0';
+
+    // trimit melodia catre server
+    if (write(sd, date_melodie, sizeof(date_melodie)) <= 0) {
+        perror("Eroare la trimiterea melodiei catre server!");
+    }
+}
 
 int main (int argc, char *argv[]) {
     int sd;			            // descriptorul de socket
@@ -107,14 +140,50 @@ int main (int argc, char *argv[]) {
 
     if (user_id == -1 && admin_status == -1) {
         printf("Utilizator inexistent sau parola incorecta!\n");
-        fflush(stdout);
     }
     else {
+        int optiune;
         if (admin_status != 1) {
             afisare_meniu_basic();
+        
+            printf("Introduceti optiunea: ");
+            fflush(stdout);
+
+            scanf("%d", &optiune);
+            while (optiune < 1 || optiune > 5) {
+                printf("Optiune invalida! Incercati din nou: ");
+                fflush(stdout);
+                
+                scanf("%d", &optiune);
+            }        
         }
         else {
             afisare_meniu_admin();
+
+            printf("Introduceti optiunea: ");
+            fflush(stdout);
+
+            scanf("%d", &optiune);
+            while (optiune < 1 || optiune > 8) {
+                printf("Optiune invalida! Incercati din nou: ");
+                fflush(stdout);
+
+                scanf("%d", &optiune);
+            }
+
+        }
+        // trimit servarului optiunea aleasa
+        if (write(sd, &optiune, sizeof(int)) <= 0) {
+            perror("Eroare la trimiterea optiunii catre server!\n");
+        }
+
+        switch (optiune) {
+            case 1:
+                trimite_melodie_la_server(sd);
+                break;
+            default:
+                printf("Optiune invalida!");
+                break;
         }
     }
 
