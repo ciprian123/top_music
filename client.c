@@ -176,10 +176,39 @@ int main (int argc, char *argv[]) {
         if (write(sd, &optiune, sizeof(int)) <= 0) {
             perror("Eroare la trimiterea optiunii catre server!\n");
         }
+        
+        int nr_melodii;
+        char melodii_de_votat[2048][128];
 
+        int optiune_votare;
         switch (optiune) {
             case 1:
                 trimite_melodie_la_server(sd);
+                break;
+            case 2:
+
+                // primesc numarul de melodii de la server
+                if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea numarului de melodii de la server!");
+                }
+
+                // primesc melodiile de la server
+                if (read(sd, melodii_de_votat, sizeof(melodii_de_votat)) <= 0) {
+                    perror("Eroare la primirea melodiilor de la server!");
+                }
+
+                for (int i = 0; i < nr_melodii; ++i) {
+                    printf("%s\n", melodii_de_votat[i]);
+                }
+                printf("Introduceti id-ul melodiei votate: ");
+                scanf("%d", &optiune_votare);
+
+                // trimit la server id-ul melodiei pe care doresc sa o votez
+                if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+                    perror("Eroare la trimiterea id-ului catre server");
+                }
+
+                printf("Melodia a fost votata cu succes!");
                 break;
             default:
                 printf("Optiune invalida!");

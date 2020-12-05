@@ -33,7 +33,8 @@ typedef struct thData{
 sqlite3* db;
 int user_id = -1;
 int admin_status = -1;
-
+int melodii_de_votat_index = 0;
+char melodii_de_votat[2048][128];
 
 static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
 void raspunde(void *);
@@ -41,6 +42,19 @@ void raspunde(void *);
 static int login_callback(void *NotUsed, int argc, char **argv, char **azColName) {
     user_id = atoi(argv[0]);
     admin_status = atoi(argv[1]);
+    return 0;
+}
+
+static int votare_melodie_callback(void *NotUsed, int argc, char** argv, char **azColName) {
+    char formatare_piesa[128];
+    strcpy(formatare_piesa, "Id: ");
+    strcat(formatare_piesa, argv[0]);
+    strcat(formatare_piesa, "  Title: ");
+    strcat(formatare_piesa, argv[1]);
+    strcat(formatare_piesa, "  No of votes: ");
+    strcat(formatare_piesa, argv[2]);
+
+    strcpy(melodii_de_votat[melodii_de_votat_index++],  formatare_piesa);
     return 0;
 }
 
@@ -99,7 +113,7 @@ void inserare_melodie(char date_melodie[6][512], int user_id) {
     int insert_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
 
     if (insert_status != SQLITE_OK) {
-        printf("Eroare la inserarea melodiei - %s", mesaj_eroare);
+        printf("Eroare la inserarea melodiei - %s!", mesaj_eroare);
         fflush(stdout);
         sqlite3_free(mesaj_eroare);
     } else {
@@ -108,12 +122,52 @@ void inserare_melodie(char date_melodie[6][512], int user_id) {
     }
 }
 
-int main () {
-    printf("%s", itoa(123));
+void marcare_votare_melodie(int user_id, int song_id) {
+    char sql_query[128] = "UPDATE songs SET no_of_votes = no_of_votes + 1 WHERE song_id = ";
+    char* mesaj_eroare;
+    strcat(sql_query, itoa(song_id));
+    printf("%s\n", sql_query);
     fflush(stdout);
+
+    int status_interogare = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+    if (status_interogare != SQLITE_OK) {
+        printf("Eroare la actualizarea numarului de voturi - %s\n", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+
+    strcpy(sql_query, "INSERT INTO votes (user_id, song_id, created_at) VALUES (");
+    strcat(sql_query, itoa(user_id));
+    strcat(sql_query, ", ");
+    strcat(sql_query, itoa(song_id));
+    strcat(sql_query, ", date('now'))");
+    
+    status_interogare = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+    if (status_interogare != SQLITE_OK) {
+        printf("Eroare la inserarea in tabelul votes - %s\n", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+
+    printf("Melodie votata cu succes!");
+    fflush(stdout);
+}
+
+void votare_melodie() {
+    char sql_query[128] = "SELECT song_id, title, no_of_votes FROM songs";
+    char* mesaj_eroare;
+
+    int select_status = sqlite3_exec(db, sql_query, votare_melodie_callback, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la selectarea melodiilor - %s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+}
+
+int main () {
     struct sockaddr_in server;	// structura folosita de server
     struct sockaddr_in from;	
-    int nr;		//mesajul primit de trimis la client 
     int sd;		//descriptorul de socket 
     int pid;
     pthread_t th[100];    //Identificatorii thread-urilor care se vor crea
@@ -246,6 +300,7 @@ void raspunde(void *arg) {
             fflush(stdout);
 
             char date_melodie[6][512];
+            // primesc de la client datele melodiei de introdus
             if (read(tdL.cl, date_melodie, sizeof(date_melodie)) <= 0) {
                 perror("Eroare la primirea melodiei de la client!");
             }
@@ -253,6 +308,25 @@ void raspunde(void *arg) {
             break;
         case 2:
             printf("Votarea unei melodii.\n");
+            votare_melodie();
+
+            // trimit la client numarul de melodii din array-ul de melodii disponibile
+            if (write(tdL.cl, &melodii_de_votat_index, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea numarului de melodii catre client!");
+            }
+            melodii_de_votat_index = 0;
+            // trimit la client 'view-ul' de melodii pentru a fi votate
+            if (write(tdL.cl, &melodii_de_votat, sizeof(melodii_de_votat)) <= 0) {
+                perror("Eroare la trimiterea melodiilor de votat!");
+            }
+
+            // primesc id-ul melodiei votate 
+            int optiune_votare;
+            if (read(tdL.cl, &optiune_votare, sizeof(int)) <= 0) {
+                perror("Eroare la primirea optiunii de votat!");
+            }
+            printf("Optiune votare: %d\n", optiune_votare);
+            marcare_votare_melodie(user_id, optiune_votare);
             fflush(stdout);
             break;
         case 3:
