@@ -33,6 +33,8 @@ typedef struct thData{
 sqlite3* db;
 int user_id = -1;
 int admin_status = -1;
+int comment_status = -1;
+int vote_status = -1;
 
 int melodii_de_votat_index = 0;
 char melodii_de_votat[2048][128];
@@ -46,6 +48,8 @@ void raspunde(void *);
 static int login_callback(void *NotUsed, int argc, char **argv, char **azColName) {
     user_id = atoi(argv[0]);
     admin_status = atoi(argv[1]);
+    comment_status = atoi(argv[2]);
+    vote_status = atoi(argv[3]);
     return 0;
 }
 
@@ -74,7 +78,7 @@ static int proceseaza_topul_general_callback(void *NotUsed, int argc, char** arg
 }
 
 void autentificare_utilizator(sqlite3* db, char* nume_utilizator, char* parola) {
-   char sql_query[512] = "SELECT user_id, admin_status FROM users WHERE username = '";
+   char sql_query[512] = "SELECT user_id, admin_status, comment_status, vote_status FROM users WHERE username = '";
    char* mesaj_eroare;
 
    strcat(sql_query, nume_utilizator);
@@ -335,26 +339,34 @@ void raspunde(void *arg) {
             break;
         case 2:
             printf("Votarea unei melodii.\n");
-            votare_melodie();
+            
+            // trimit vote_status ul clientului catre acesta
+            if (write(tdL.cl, &vote_status, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea statusului de vot catre client!");
+            }
+            if (vote_status == 1) {
+                 votare_melodie();
 
-            // trimit la client numarul de melodii din array-ul de melodii disponibile
-            if (write(tdL.cl, &melodii_de_votat_index, sizeof(int)) <= 0) {
-                perror("Eroare la trimiterea numarului de melodii catre client!");
-            }
-            melodii_de_votat_index = 0;
-            // trimit la client 'view-ul' de melodii pentru a fi votate
-            if (write(tdL.cl, &melodii_de_votat, sizeof(melodii_de_votat)) <= 0) {
-                perror("Eroare la trimiterea melodiilor de votat!");
-            }
+                // trimit la client numarul de melodii din array-ul de melodii disponibile
+                if (write(tdL.cl, &melodii_de_votat_index, sizeof(int)) <= 0) {
+                    perror("Eroare la trimiterea numarului de melodii catre client!");
+                }
+                melodii_de_votat_index = 0;
+                // trimit la client 'view-ul' de melodii pentru a fi votate
+                if (write(tdL.cl, &melodii_de_votat, sizeof(melodii_de_votat)) <= 0) {
+                    perror("Eroare la trimiterea melodiilor de votat!");
+                }
 
-            // primesc id-ul melodiei votate 
-            int optiune_votare;
-            if (read(tdL.cl, &optiune_votare, sizeof(int)) <= 0) {
-                perror("Eroare la primirea optiunii de votat!");
+                // primesc id-ul melodiei votate 
+                int optiune_votare;
+                if (read(tdL.cl, &optiune_votare, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea optiunii de votat!");
+                }
+            
+                printf("Optiune votare: %d\n", optiune_votare);
+                marcare_votare_melodie(user_id, optiune_votare);
+                fflush(stdout);
             }
-            printf("Optiune votare: %d\n", optiune_votare);
-            marcare_votare_melodie(user_id, optiune_votare);
-            fflush(stdout);
             break;
         case 3:
             printf("Afisarea topului general.\n");
@@ -405,5 +417,5 @@ void raspunde(void *arg) {
     }
 
 
-    user_id = admin_status = -1; // resetam valorile atributelor
+    user_id = admin_status = comment_status = vote_status = -1; // resetam valorile atributelor
 }

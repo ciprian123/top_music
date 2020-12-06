@@ -181,34 +181,43 @@ int main (int argc, char *argv[]) {
         char lista_melodii[2048][128];
 
         int optiune_votare;
+        int vote_status;
         switch (optiune) {
             case 1:
                 trimite_melodie_la_server(sd);
                 break;
             case 2:
-
-                // primesc numarul de melodii de la server
-                if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
-                    perror("Eroare la primirea numarului de melodii de la server!");
+                // primesc statusul de vot al clientului
+                if (read(sd, &vote_status, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea vote_status de la server!");
                 }
 
-                // primesc melodiile de la server
-                if (read(sd, lista_melodii, sizeof(lista_melodii)) <= 0) {
-                    perror("Eroare la primirea melodiilor de la server!");
-                }
+                if (vote_status == 1) {
+                    // primesc numarul de melodii de la server
+                    if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
+                        perror("Eroare la primirea numarului de melodii de la server!");
+                    }
 
-                for (int i = 0; i < nr_melodii; ++i) {
-                    printf("%s\n", lista_melodii[i]);
-                }
-                printf("Introduceti id-ul melodiei votate: ");
-                scanf("%d", &optiune_votare);
+                    // primesc melodiile de la server
+                    if (read(sd, lista_melodii, sizeof(lista_melodii)) <= 0) {
+                        perror("Eroare la primirea melodiilor de la server!");
+                    }
 
-                // trimit la server id-ul melodiei pe care doresc sa o votez
-                if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
-                    perror("Eroare la trimiterea id-ului catre server");
-                }
+                    for (int i = 0; i < nr_melodii; ++i) {
+                        printf("%s\n", lista_melodii[i]);
+                    }
+                    printf("Introduceti id-ul melodiei votate: ");
+                    scanf("%d", &optiune_votare);
 
-                printf("Melodia a fost votata cu succes!");
+                    // trimit la server id-ul melodiei pe care doresc sa o votez
+                    if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+                        perror("Eroare la trimiterea id-ului catre server");
+                    }
+
+                    printf("Melodia a fost votata cu succes!");
+                } else {
+                    printf("Nu aveti drepturi de vot! Contactati un admin!\n");
+                }
                 break;
             case 3:
                 // primesc numarul de melodii de la server
