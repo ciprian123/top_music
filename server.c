@@ -42,6 +42,9 @@ char melodii_de_votat[2048][128];
 int top_melodii_index = 0;
 char top_melodii[2048][128];
 
+int nr_genuri = 0;
+char lista_genuri[128][128];
+
 static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
 void raspunde(void *);
 
@@ -71,6 +74,22 @@ static int proceseaza_topul_general_callback(void *NotUsed, int argc, char** arg
     strcpy(formatare_piesa, "Titlu: ");
     strcat(formatare_piesa, argv[0]);
     strcat(formatare_piesa, "    Nr voturi: ");
+    strcat(formatare_piesa, argv[1]);
+
+    strcpy(top_melodii[top_melodii_index++], formatare_piesa);
+    return 0;
+}
+
+static int proceseaza_genuri_melodii_callback(void *NotUsed, int argc, char** argv, char **azColName) {
+    strcpy(lista_genuri[nr_genuri++], argv[0]);
+    return 0;
+}
+
+static int filtreaza_top_dupa_gen_callback(void* NotUsed, int argc, char** argv, char **azColName) {
+    char formatare_piesa[128];
+    strcpy(formatare_piesa, "Titlu: ");
+    strcat(formatare_piesa, argv[0]);
+    strcat(formatare_piesa, "     Nr voturi: ");
     strcat(formatare_piesa, argv[1]);
 
     strcpy(top_melodii[top_melodii_index++], formatare_piesa);
@@ -124,9 +143,6 @@ void inserare_melodie(char date_melodie[6][512], int user_id) {
     strcat(sql_query, "' ,'");
     strcat(sql_query, date_melodie[5]);
     strcat(sql_query, "', 0, date('now'))");
-    
-    //printf("%s", sql_query);
-    //fflush(stdout);
     
     char* mesaj_eroare;
     int insert_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
@@ -191,6 +207,32 @@ void afisare_top_general() {
     int select_status = sqlite3_exec(db, sql_query, proceseaza_topul_general_callback, 0, &mesaj_eroare);
     if (select_status != SQLITE_OK) {
         printf("Eroare la selectarea melodiilor in topul general - %s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+}
+
+void afisare_lista_genuri() {
+    char sql_query[128] = "SELECT DISTINCT genre FROM songs";
+    char* mesaj_eroare;
+
+    int select_status = sqlite3_exec(db, sql_query, proceseaza_genuri_melodii_callback, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la selectarea genurilor melodiilor - %s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+}
+
+void filtrare_top_dupa_genuri(int gen_id) {
+    char sql_query[128] = "SELECT title, no_of_votes FROM songs WHERE genre = '";
+    char* mesaj_eroare;
+    strcat(sql_query, lista_genuri[gen_id]);
+    strcat(sql_query, "' ORDER BY no_of_votes DESC");
+
+    int select_status = sqlite3_exec(db, sql_query, filtreaza_top_dupa_gen_callback, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la selectarea topului pe genuri - %s!", mesaj_eroare);
         fflush(stdout);
         sqlite3_free(mesaj_eroare);
     }
@@ -391,8 +433,39 @@ void raspunde(void *arg) {
             fflush(stdout);
             break;
         case 4:
-            printf("Afisarea topului general.\n");
-            fflush(stdout);
+            printf("Afisarea topului pe genuri.\n");
+
+            afisare_lista_genuri();
+
+            // trimit la client numarul de genuri
+            if (write(tdL.cl, &nr_genuri, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea numarului de genuri catre client!");
+            }
+
+            // trimit la client lista de genuri
+            if (write(tdL.cl, lista_genuri, sizeof(lista_genuri)) <= 0) {
+                perror("Eroare la trimiterea listei de genuri catre client!");
+            }
+            
+            int optiune_gen;
+            // primesc optiunea genului selectat de client
+            if (read(tdL.cl, &optiune_gen, sizeof(int)) <= 0) {
+                perror("Eroare la primirea optiunii genului de la client!");
+            }
+
+            filtrare_top_dupa_genuri(optiune_gen);
+
+            // trimit numarul de melodii din top catre client
+            if (write(tdL.cl, &top_melodii_index, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea optiunii numarului de melodii la client!");
+            }
+
+            // trimit topul filtrat dupa gen catre client
+            if (write(tdL.cl, &top_melodii, sizeof(top_melodii)) <= 0) {
+                perror("Eroare la trimiterea topului de melodii filtrat la client!");
+            }
+
+            top_melodii_index = nr_genuri = 0;
             break;
         case 5:
             printf("Afisarea topului pe genuri.\n");

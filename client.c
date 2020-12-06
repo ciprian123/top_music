@@ -180,6 +180,9 @@ int main (int argc, char *argv[]) {
         int nr_melodii;
         char lista_melodii[2048][128];
 
+        int nr_genuri;
+        char lista_genuri[128][128];
+
         int optiune_votare;
         int vote_status;
         switch (optiune) {
@@ -235,6 +238,50 @@ int main (int argc, char *argv[]) {
                     printf("%s\n", lista_melodii[i]);
                 }
 
+                break;
+            case 4:
+                // primesc numarul de genuri de la server
+                if (read(sd, &nr_genuri, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea numarului de genuri de la server!");
+                }
+
+                // primesc lista de genuri de la server
+                if (read(sd, lista_genuri, sizeof(lista_genuri)) <= 0) {
+                    perror("Eroare la primirea numarului de genuri de la server!");
+                }
+
+                printf("Genurile topului muzical:");
+                for (int i = 0; i < nr_genuri; ++i) {
+                    printf("%d. %s\n", i, lista_genuri[i]);
+                }
+
+                printf("Introduceti optiunea genului dorit: ");
+                scanf("%d", &optiune_votare);
+
+                while (optiune_votare < 0 || optiune_votare >= nr_genuri) {
+                    printf("Optiune gresita! Incercati din nou: ");
+                    scanf("%d", &optiune_votare);
+                }
+
+                // trimit serverului genul selectat pentru vizualizare la top
+                if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+                    perror("Eroare la trimiterea genului selectat catre server!");
+                }
+
+                // primesc numarul de melodii de la server
+                if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea numarului de melodii de la server!");
+                }
+
+                // primesc melodiile topului pe gen de la server
+                if (read(sd, lista_melodii, sizeof(lista_melodii)) <= 0) {
+                    perror("Eroare la primirea topului de melodii pe gen de la server!");
+                }
+
+                printf("Topul melodiilor in genul %s:\n", lista_genuri[optiune_votare]);
+                for (int i = 0; i < nr_melodii; ++i) {
+                    printf("%s\n", lista_melodii[i]);
+                }
                 break;
             default:
                 printf("Optiune invalida!");
