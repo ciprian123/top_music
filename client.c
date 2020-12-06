@@ -22,18 +22,18 @@ extern int errno;
 int port;
 
 void afisare_meniu_basic() {
-    printf("* Pentru adaugarea unei melodii la top introduceti `1`\n");       fflush(stdout);
-    printf("* Pentru votarea unei melodii introduceti `2`\n");                fflush(stdout);
-    printf("* Pentru a adauga un comentariu la o melodie introduceti `3`\n"); fflush(stdout);
-    printf("* Pentru afisarea topului general introduceti `4`\n");            fflush(stdout);
-    printf("* Pentru afisarea topului pe genuri introduceti `5`\n");          fflush(stdout);
+    printf("* Pentru adaugarea unei melodii la top introduceti `1`\n");
+    printf("* Pentru votarea unei melodii introduceti `2`\n");
+    printf("* Pentru afisarea topului general introduceti `3`\n");
+    printf("* Pentru afisarea topului pe genuri introduceti `4`\n");
+    printf("* Pentru adaugarea unui comentariu introduceti `5`\n");
 }
 
 void afisare_meniu_admin() {
     afisare_meniu_basic();
-    printf("* Pentru stergerea unei melodii introduceti `6`\n");                         fflush(stdout);
-    printf("* Pentru restrictionarea la vot a unui utilizator introduceti `7`\n");       fflush(stdout);
-    printf("* Pentru restrictionarea de a comenta a unui utilizator introduceti `8`\n"); fflush(stdout);
+    printf("* Pentru stergerea unei melodii introduceti `6`\n");                  
+    printf("* Pentru restrictionarea la vot a unui utilizator introduceti `7`\n"); 
+    printf("* Pentru restrictionarea de a comenta a unui utilizator introduceti `8`\n");
 }
 
 void trimite_melodie_la_server(int sd) {
@@ -178,7 +178,7 @@ int main (int argc, char *argv[]) {
         }
         
         int nr_melodii;
-        char melodii_de_votat[2048][128];
+        char lista_melodii[2048][128];
 
         int optiune_votare;
         switch (optiune) {
@@ -193,12 +193,12 @@ int main (int argc, char *argv[]) {
                 }
 
                 // primesc melodiile de la server
-                if (read(sd, melodii_de_votat, sizeof(melodii_de_votat)) <= 0) {
+                if (read(sd, lista_melodii, sizeof(lista_melodii)) <= 0) {
                     perror("Eroare la primirea melodiilor de la server!");
                 }
 
                 for (int i = 0; i < nr_melodii; ++i) {
-                    printf("%s\n", melodii_de_votat[i]);
+                    printf("%s\n", lista_melodii[i]);
                 }
                 printf("Introduceti id-ul melodiei votate: ");
                 scanf("%d", &optiune_votare);
@@ -209,6 +209,23 @@ int main (int argc, char *argv[]) {
                 }
 
                 printf("Melodia a fost votata cu succes!");
+                break;
+            case 3:
+                // primesc numarul de melodii de la server
+                if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea numarului de melodii de la sever!");
+                }
+
+                // primesc melodiile topului general
+                if (read(sd, &lista_melodii, sizeof(lista_melodii)) <= 0) {
+                    perror("Eroare la primirea topului general de la server!");
+                }
+
+                printf("Topul general al melodiilor:\n");
+                for (int i = 0; i < nr_melodii; ++i) {
+                    printf("%s\n", lista_melodii[i]);
+                }
+
                 break;
             default:
                 printf("Optiune invalida!");

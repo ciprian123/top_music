@@ -33,8 +33,12 @@ typedef struct thData{
 sqlite3* db;
 int user_id = -1;
 int admin_status = -1;
+
 int melodii_de_votat_index = 0;
 char melodii_de_votat[2048][128];
+
+int top_melodii_index = 0;
+char top_melodii[2048][128];
 
 static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
 void raspunde(void *);
@@ -49,12 +53,23 @@ static int votare_melodie_callback(void *NotUsed, int argc, char** argv, char **
     char formatare_piesa[128];
     strcpy(formatare_piesa, "Id: ");
     strcat(formatare_piesa, argv[0]);
-    strcat(formatare_piesa, "  Title: ");
+    strcat(formatare_piesa, "     Title: ");
     strcat(formatare_piesa, argv[1]);
-    strcat(formatare_piesa, "  No of votes: ");
+    strcat(formatare_piesa, "     No of votes: ");
     strcat(formatare_piesa, argv[2]);
 
     strcpy(melodii_de_votat[melodii_de_votat_index++],  formatare_piesa);
+    return 0;
+}
+
+static int proceseaza_topul_general_callback(void *NotUsed, int argc, char** argv, char **azColName) {
+    char formatare_piesa[128];
+    strcpy(formatare_piesa, "Titlu: ");
+    strcat(formatare_piesa, argv[0]);
+    strcat(formatare_piesa, "    Nr voturi: ");
+    strcat(formatare_piesa, argv[1]);
+
+    strcpy(top_melodii[top_melodii_index++], formatare_piesa);
     return 0;
 }
 
@@ -160,6 +175,18 @@ void votare_melodie() {
     int select_status = sqlite3_exec(db, sql_query, votare_melodie_callback, 0, &mesaj_eroare);
     if (select_status != SQLITE_OK) {
         printf("Eroare la selectarea melodiilor - %s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+}
+
+void afisare_top_general() {
+    char sql_query[128] = "SELECT title, no_of_votes FROM songs ORDER BY no_of_votes DESC";
+    char* mesaj_eroare;
+
+    int select_status = sqlite3_exec(db, sql_query, proceseaza_topul_general_callback, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la selectarea melodiilor in topul general - %s!", mesaj_eroare);
         fflush(stdout);
         sqlite3_free(mesaj_eroare);
     }
@@ -330,7 +357,25 @@ void raspunde(void *arg) {
             fflush(stdout);
             break;
         case 3:
-            printf("Adaugarea unui comentariu.\n");
+            printf("Afisarea topului general.\n");
+
+            afisare_top_general();
+
+            // trimit la client numarul de melodii din topul general
+            if (write(tdL.cl, &top_melodii_index, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea numarul de melodii din top catre client!");
+            }
+
+            // trimit la client melodiile din topul general
+            if (write(tdL.cl, top_melodii, sizeof(top_melodii)) <= 0) {
+                perror("Eroare la trimiterea melodiilor din topul general!");
+            }
+
+            top_melodii_index = 0;
+            for (int i = 0; i < top_melodii_index; ++i) {
+                printf("%s\n", top_melodii[i]);
+                fflush(stdout);
+            }
             fflush(stdout);
             break;
         case 4:
