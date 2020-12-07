@@ -185,6 +185,8 @@ int main (int argc, char *argv[]) {
 
         int optiune_votare;
         int vote_status;
+        int comment_status;
+        char comentariu[2047];
         switch (optiune) {
             case 1:
                 trimite_melodie_la_server(sd);
@@ -281,6 +283,56 @@ int main (int argc, char *argv[]) {
                 printf("Topul melodiilor in genul %s:\n", lista_genuri[optiune_votare]);
                 for (int i = 0; i < nr_melodii; ++i) {
                     printf("%s\n", lista_melodii[i]);
+                }
+                break;
+            case 5:
+                // primesc statusul de a comenta
+                if (read(sd, &comment_status, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea statusului de a comenta de la server!");
+                }
+
+                // primesc numarul de melodii de la server
+                if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
+                    perror("Eroarea la primirea numarului de melodii de la server!");
+                }
+
+                // primesc lista de melodii de la server
+                if (read(sd, lista_melodii, sizeof(lista_melodii)) <= 0) {
+                    perror("Eroare la primirea listei de melodii de la server!");
+                }
+
+                if (comment_status == 1) {
+                    for (int i = 0; i < nr_melodii; ++i) {
+                        printf("Id: %d     %s\n", i, lista_melodii[i]);
+                    }
+            
+                    printf("Introduceti id-ul melodiei pentru care adaugati comentariu: ");
+                    scanf("%d", &optiune_votare);
+
+                    while (optiune_votare < 0 || optiune_votare >= nr_melodii) {
+                        printf("Id incorect, incercati din nou: ");
+                        scanf("%d", &optiune_votare);
+                    }
+                
+                    nr_melodii = 0;
+                    fgetc(stdin);
+                    printf("Introduceti comentariul pentru piesa %d: ", optiune_votare);
+                    fgets(comentariu, 2047, stdin);
+                    comentariu[strlen(comentariu) - 1] = '\0';
+
+                    // trimit la server id-ul melodiei votate
+                    if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+                        perror("Eroare la trimiterea id-ului piesei votate catre server!");
+                    }
+
+                    // trimit la server comentariul piesei
+                    if (write(sd, comentariu, sizeof(comentariu)) <= 0) {
+                        perror("Eroare la trimiterea comentariului catre server!");
+                    }
+                
+                    printf("Comentariu inserat cu succes!\n");
+                } else {
+                    printf("Nu aveti dreptul de a comenta! Contactati un admin!");
                 }
                 break;
             default:

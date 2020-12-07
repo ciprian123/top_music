@@ -36,14 +36,16 @@ int admin_status = -1;
 int comment_status = -1;
 int vote_status = -1;
 
-int melodii_de_votat_index = 0;
-char melodii_de_votat[2048][128];
+int nr_melodii = 0;
+char lista_melodii[2048][128];
 
 int top_melodii_index = 0;
 char top_melodii[2048][128];
 
 int nr_genuri = 0;
 char lista_genuri[128][128];
+
+char id_melodie[10];
 
 static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
 void raspunde(void *);
@@ -65,7 +67,7 @@ static int votare_melodie_callback(void *NotUsed, int argc, char** argv, char **
     strcat(formatare_piesa, "     No of votes: ");
     strcat(formatare_piesa, argv[2]);
 
-    strcpy(melodii_de_votat[melodii_de_votat_index++],  formatare_piesa);
+    strcpy(lista_melodii[nr_melodii++],  formatare_piesa);
     return 0;
 }
 
@@ -93,6 +95,20 @@ static int filtreaza_top_dupa_gen_callback(void* NotUsed, int argc, char** argv,
     strcat(formatare_piesa, argv[1]);
 
     strcpy(top_melodii[top_melodii_index++], formatare_piesa);
+    return 0;
+}
+
+static int afisare_lista_melodii_callback(void *NotUsed, int argc, char** argv, char** azColName) {
+    char formatare_piesa[128];
+    strcpy(formatare_piesa, "Titlu: ");
+    strcat(formatare_piesa, argv[0]);
+
+    strcpy(lista_melodii[nr_melodii++], formatare_piesa);
+    return 0;
+}
+
+static int identificare_id_melodie(void *NotUsed, int argc, char** argv, char** azColName) {
+    strcpy(id_melodie, argv[0]);
     return 0;
 }
 
@@ -198,6 +214,52 @@ void votare_melodie() {
         fflush(stdout);
         sqlite3_free(mesaj_eroare);
     }
+}
+
+void afisare_melodii_pentru_comentare() {
+    char sql_query[128] = "SELECT title FROM songs";
+    char* mesaj_eroare;
+
+    int select_status = sqlite3_exec(db, sql_query, afisare_lista_melodii_callback, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la selectarea melodiilor pentru comentare - %s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+}
+
+void inserare_comentariu(int user_id, char* comentariu, int id_ordine_piesa) {
+    char sql_query[128] = "SELECT song_id FROM songs WHERE title = '";
+    char* mesaj_eroare;
+    strcat(sql_query, lista_melodii[id_ordine_piesa] + 7); // elimin partea de `Title: ` din lista de melodii
+    strcat(sql_query, "'");
+
+    int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la extragerea id ului real al melodiei -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+
+    // dupa ce avem id ul real al melodiei in baza de date, vom insera in tabelul comentarii 
+    strcpy(sql_query, "INSERT INTO comments (user_id, song_id, content, created_at) VALUES (");
+    strcat(sql_query, itoa(user_id));
+    strcat(sql_query, ", ");
+    strcat(sql_query, id_melodie);
+    strcat(sql_query, ", ");
+    strcat(sql_query, "'");
+    strcat(sql_query, comentariu);
+    strcat(sql_query, "', ");
+    strcat(sql_query, "date('now'))");
+
+    int insert_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+    if (insert_status != SQLITE_OK) {
+        printf("Eroare la inserarea comentariului -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+    printf("Comentariu inserat cu succes!");
+    fflush(stdout);
 }
 
 void afisare_top_general() {
@@ -390,12 +452,12 @@ void raspunde(void *arg) {
                  votare_melodie();
 
                 // trimit la client numarul de melodii din array-ul de melodii disponibile
-                if (write(tdL.cl, &melodii_de_votat_index, sizeof(int)) <= 0) {
+                if (write(tdL.cl, &nr_melodii, sizeof(int)) <= 0) {
                     perror("Eroare la trimiterea numarului de melodii catre client!");
                 }
-                melodii_de_votat_index = 0;
+                nr_melodii = 0;
                 // trimit la client 'view-ul' de melodii pentru a fi votate
-                if (write(tdL.cl, &melodii_de_votat, sizeof(melodii_de_votat)) <= 0) {
+                if (write(tdL.cl, &lista_melodii, sizeof(lista_melodii)) <= 0) {
                     perror("Eroare la trimiterea melodiilor de votat!");
                 }
 
@@ -468,8 +530,41 @@ void raspunde(void *arg) {
             top_melodii_index = nr_genuri = 0;
             break;
         case 5:
-            printf("Afisarea topului pe genuri.\n");
-            fflush(stdout);
+            printf("Comentarea unei melodii.\n");
+            afisare_melodii_pentru_comentare();
+           
+            // trimit numarul de melodii la client
+            if (write(tdL.cl, &nr_melodii, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea numarului de melodii la client!");
+            }
+
+            // trimit lista melodiilor la client
+            if (write(tdL.cl, lista_melodii, sizeof(lista_melodii)) <= 0) {
+                perror("Eroare la trimiterea listei de melodii la client!");
+            }
+
+            nr_melodii = 0;
+            if (comment_status == 1) {
+                // primesc id-ul melodiei pe care doresc sa o votez
+                int id_ordine_melodie;
+                if (read(tdL.cl, &id_ordine_melodie, sizeof(int)) <= 0) {
+                    perror("Eroare la citirea numarului de ordine al melodiei de la client!");
+                }
+
+                // primesc comentariul asociat melodiei
+                char comentariu[2048];
+                if (read(tdL.cl, &comentariu, sizeof(comentariu)) <= 0) {
+                    perror("Eroare la citirea comentariului de la client!");
+                }
+
+                printf("%d - %s\n", id_ordine_melodie, comentariu);
+                fflush(stdout);
+
+                inserare_comentariu(user_id, comentariu, id_ordine_melodie);
+            } else {
+                printf("Nu aveti drep de a comenta! Contactati un admin!\n");
+                fflush(stdout);
+            }
             break;
         case 6:
             printf("Stergerea unei melodii.\n");
