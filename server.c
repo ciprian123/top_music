@@ -48,7 +48,7 @@ char lista_genuri[128][128];
 char id_melodie[10];
 
 static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
-void raspunde(void *);
+void gestioneaza_clientul(void *);
 
 static int login_callback(void *NotUsed, int argc, char **argv, char **azColName) {
     user_id = atoi(argv[0]);
@@ -216,7 +216,7 @@ void votare_melodie() {
     }
 }
 
-void afisare_melodii_pentru_comentare() {
+void afisare_lista_generala_melodii() {
     char sql_query[128] = "SELECT title FROM songs";
     char* mesaj_eroare;
 
@@ -298,6 +298,32 @@ void filtrare_top_dupa_genuri(int gen_id) {
         fflush(stdout);
         sqlite3_free(mesaj_eroare);
     }
+}
+
+void stergere_melodie(int id_ordine_piesa) {
+    char sql_query[128] = "SELECT song_id FROM songs WHERE title = '";
+    char* mesaj_eroare;
+    strcat(sql_query, lista_melodii[id_ordine_piesa] + 7); // elimin partea de `Title: ` din lista de melodii
+    strcat(sql_query, "'");
+
+    int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la extragerea id ului real al melodiei -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+
+    strcpy(sql_query, "DELETE FROM songs WHERE song_id = ");
+    strcat(sql_query, id_melodie);
+
+    int delete_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+    if (delete_status != SQLITE_OK) {
+        printf("Eroare la stergerea melodiei -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+    printf("Melodie stearsa cu succes!");
+    fflush(stdout);
 }
 
 int main () {
@@ -383,13 +409,13 @@ static void *treat(void * arg) {
 	printf ("[thread]- %d - Asteptam mesajul...\n", tdL.idThread);
 	fflush (stdout);		 
 	pthread_detach(pthread_self());		
-	raspunde((struct thData*)arg);
+	gestioneaza_clientul((struct thData*)arg);
 	/* am terminat cu acest client, inchidem conexiunea */
 	close ((intptr_t)arg);
 	return(NULL);		
 };
 
-void raspunde(void *arg) {
+void gestioneaza_clientul(void *arg) {
     int nr, i = 0;
 	struct thData tdL; 
 	tdL= *((struct thData*)arg);
@@ -531,7 +557,7 @@ void raspunde(void *arg) {
             break;
         case 5:
             printf("Comentarea unei melodii.\n");
-            afisare_melodii_pentru_comentare();
+            afisare_lista_generala_melodii();
            
             // trimit numarul de melodii la client
             if (write(tdL.cl, &nr_melodii, sizeof(int)) <= 0) {
@@ -568,7 +594,23 @@ void raspunde(void *arg) {
             break;
         case 6:
             printf("Stergerea unei melodii.\n");
-            fflush(stdout);
+            afisare_lista_generala_melodii();
+            // trimit numarul de melodii la client
+            if (write(tdL.cl, &nr_melodii, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea numarului de melodii la client!");
+            }
+            // trimit lista melodiilor la client
+            if (write(tdL.cl, lista_melodii, sizeof(lista_melodii)) <= 0) {
+                perror("Eroare la trimiterea listei de melodii la client!");
+            }
+            nr_melodii = 0;
+
+            // primesc id-ul melodiei pe care sa o stergem de la client
+            int id_ordine_melodie;
+            if (read(tdL.cl, &id_ordine_melodie, sizeof(int)) <= 0) {
+                perror("Eroare la primirea id-ului melodiei de sters de la client!");
+            }
+            stergere_melodie(id_ordine_melodie);
             break;
         case 7:
             printf("Restrictionarea la vot a unui utilizator.\n");

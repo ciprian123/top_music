@@ -335,6 +335,34 @@ int main (int argc, char *argv[]) {
                     printf("Nu aveti dreptul de a comenta! Contactati un admin!");
                 }
                 break;
+            case 6:
+                // primesc numarul de melodii de la server
+                if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
+                    perror("Eroarea la primirea numarului de melodii de la server!");
+                }
+                // primesc lista de melodii de la server
+                if (read(sd, lista_melodii, sizeof(lista_melodii)) <= 0) {
+                    perror("Eroare la primirea listei de melodii de la server!");
+                }
+                for (int i = 0; i < nr_melodii; ++i) {
+                    printf("Id: %d %s\n", i, lista_melodii[i]);
+                }
+
+                printf("Introduceti id-ul melodiei pe care doriti sa o stergeti: ");
+                scanf("%d", &optiune_votare);
+                while (optiune_votare < 0 || optiune_votare >= nr_melodii) {
+                    printf("Id incorect, incercati din nou: ");
+                    scanf("%d", &optiune_votare);
+                }
+
+                // trimit optiunea la server
+                if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+                    perror("Eroare la trimiterea id-ului melodiei de sters catre server!");
+                }
+
+                printf("Melodie stersa cu succes!");
+                nr_melodii = 0;
+                break;
             default:
                 printf("Optiune invalida!");
                 break;
