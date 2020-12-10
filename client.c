@@ -111,6 +111,8 @@ int main (int argc, char *argv[]) {
 
     int user_id;
     int admin_status;
+    int vote_status;
+    int comment_status;
 
     printf("Introduceti nume utilizator: ");
     scanf("%s", nume_utilizator);
@@ -136,6 +138,16 @@ int main (int argc, char *argv[]) {
     // primesc admin_status de la server
     if (read(sd, &admin_status, sizeof(int)) <= 0) {
         perror("Eroare primire admin_status de la client!\n");
+    }
+
+    // primesc vote_status de la server
+    if (read(sd, &vote_status, sizeof(int)) <= 0) {
+        perror("Eroare primire vote_status de la client!\n");
+    }
+
+    // primesc comment_status de la server
+    if (read(sd, &comment_status, sizeof(int)) <= 0) {
+        perror("Eroare primire comment_status de la client!\n");
     }
 
     if (user_id == -1 && admin_status == -1) {
@@ -185,8 +197,6 @@ int main (int argc, char *argv[]) {
 
         int grant_status;
         int optiune_votare;
-        int vote_status;
-        int comment_status;
         char comentariu[2047];
 
         int nr_utilizatori;
@@ -197,9 +207,9 @@ int main (int argc, char *argv[]) {
                 break;
             case 2:
                 // primesc statusul de vot al clientului
-                if (read(sd, &vote_status, sizeof(int)) <= 0) {
-                    perror("Eroare la primirea vote_status de la server!");
-                }
+                //if (read(sd, &vote_status, sizeof(int)) <= 0) {
+                //    perror("Eroare la primirea vote_status de la server!");
+                //}
 
                 if (vote_status == 1) {
                     // primesc numarul de melodii de la server
@@ -290,11 +300,6 @@ int main (int argc, char *argv[]) {
                 }
                 break;
             case 5:
-                // primesc statusul de a comenta
-                if (read(sd, &comment_status, sizeof(int)) <= 0) {
-                    perror("Eroare la primirea statusului de a comenta de la server!");
-                }
-
                 // primesc numarul de melodii de la server
                 if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
                     perror("Eroarea la primirea numarului de melodii de la server!");
@@ -407,6 +412,47 @@ int main (int argc, char *argv[]) {
                 }
                 printf("Drepturi actualizate cu succes!\n");
                 nr_utilizatori = 0;
+                break;
+            case 8:
+                // primesc numarul de utulizatori de la server
+                if (read(sd, &nr_utilizatori, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea numarului de utilizatori catre server!");
+                }
+
+                // primesc lista de utilizatori de la server
+                if (read(sd, lista_utilizatori, sizeof(lista_utilizatori)) <= 0) {
+                    perror("Eroare la primirea listei de utilizatori catre server!");
+                }
+                
+                for (int i = 0; i < nr_utilizatori; ++i) {
+                    printf("%s\n", lista_utilizatori[i]);
+                }
+
+                printf("Introduceti id-ul utilizatorului dorit: ");
+                scanf("%d", &optiune_votare);
+                while (optiune_votare < 1 || optiune_votare > nr_utilizatori) {
+                    printf("Id incorect, incercati din nou: ");
+                    scanf("%d", &optiune_votare);
+                }
+
+                printf("Introduceti 1 pentru a da drept de comentare, 0 pentru a lua dreptul de comentare: ");
+                scanf("%d", &grant_status);
+                while (grant_status != 1 && grant_status != 0) {
+                    printf("Optiune incorecta, incercati din nou: ");
+                    scanf("%d", &grant_status);
+                }
+
+                // trimit la server id ul utilizatorului pe care doresc sa il restrictionez
+                if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+                    perror("Eroare la trimiterea id-ului utilizatorului catre server!");
+                }
+
+                // trimit la server intentia cu privire la statusul de votare
+                if (write(sd, &grant_status, sizeof(int)) <= 0) {
+                    perror("Eroare la trimiterea optiunii de acordare a dreptului de comentare catre server!");
+                }
+
+                printf("Drepturi actualizate cu succes!\n");
                 break;
             default:
                 printf("Optiune invalida!");

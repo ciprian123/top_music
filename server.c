@@ -375,6 +375,27 @@ void administrare_drepturi_vot(int user_id, int grant_status) {
     fflush(stdout);
 }
 
+void administrare_drepturi_comentare(int user_id, int grant_status) {
+    char sql_query[128] = "UPDATE users SET comment_status = ";
+    char* mesaj_eroare;
+    if (grant_status == 1) {
+        strcat(sql_query, "1 WHERE user_id = ");
+    } else {
+        strcat(sql_query, "0 WHERE user_id = ");
+    }
+    strcat(sql_query, itoa(user_id));
+    int update_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+    if (update_status != SQLITE_OK) {
+        printf("Eroare eroare la actualizarea drepturilor de vot -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+    printf(sql_query);
+    fflush(stdout);
+    printf("Drepturi actualizate cu succes!\n");
+    fflush(stdout);
+}
+
 int main () {
     struct sockaddr_in server;	// structura folosita de server
     struct sockaddr_in from;	
@@ -494,6 +515,16 @@ void gestioneaza_clientul(void *arg) {
         perror("Eroare la trimitere admin_status catre client!");
     }
     
+    // trimit vote_status catre client
+    if (write(tdL.cl, &vote_status, sizeof(int)) <= 0) {
+        perror("Eroare la trimitere vote_status catre client!");
+    }
+
+    // trimit comment_status catre client
+    if (write(tdL.cl, &comment_status, sizeof(int)) <= 0) {
+        perror("Eroare la trimitere comment_status catre client!");
+    }
+
     // primesc optiunea alease de client
     int optiune;
     if (read(tdL.cl, &optiune, sizeof(int)) <= 0) {
@@ -502,8 +533,6 @@ void gestioneaza_clientul(void *arg) {
 
     printf("Optiunea este: %d\n", optiune);
     fflush(stdout);
-    
-
     switch (optiune) {
         case 1:
             printf("Adaugarea unei melodii la top.\n");
@@ -520,9 +549,9 @@ void gestioneaza_clientul(void *arg) {
             printf("Votarea unei melodii.\n");
             
             // trimit vote_status ul clientului catre acesta
-            if (write(tdL.cl, &vote_status, sizeof(int)) <= 0) {
-                perror("Eroare la trimiterea statusului de vot catre client!");
-            }
+            //if (write(tdL.cl, &vote_status, sizeof(int)) <= 0) {
+            //    perror("Eroare la trimiterea statusului de vot catre client!");
+            //}
             if (vote_status == 1) {
                  votare_melodie();
 
@@ -691,6 +720,29 @@ void gestioneaza_clientul(void *arg) {
         case 8:
             printf("Restrictionarea de a comenta a unui utulizator.\n");
             fflush(stdout);
+
+            afisare_utilizatori();
+
+            // trimit numarul de utulizatori catre client
+            if (write(tdL.cl, &nr_utilizatori, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea numarului de utilizatori catre client!");
+            }
+
+            // trimit lista de utulizatori la client
+            if (write(tdL.cl, lista_utilizatori, sizeof(lista_utilizatori)) <= 0) {
+                perror("Eroare la trimiterea listei de utilizatori catre client!");
+            }
+
+            if (read(tdL.cl, &id_utilizator_restrctionat, sizeof(int)) <= 0) {
+                perror("Eroare la primirea id-ului utilizatorului restrictionat de la client!");
+            }
+
+            if (read(tdL.cl, &grant_status, sizeof(int)) <= 0) {
+                perror("Eroare la primirea optiunii de restictie de la client!");
+            }
+
+            administrare_drepturi_comentare(id_utilizator_restrctionat, grant_status);
+            nr_utilizatori = 0;
             break;
         default:
             printf("Optiune invalida!\n");
