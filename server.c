@@ -45,6 +45,9 @@ char top_melodii[2048][128];
 int nr_genuri = 0;
 char lista_genuri[128][128];
 
+int nr_utilizatori = 0;
+char lista_utilizatori[128][256];
+
 char id_melodie[10];
 
 static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
@@ -107,7 +110,23 @@ static int afisare_lista_melodii_callback(void *NotUsed, int argc, char** argv, 
     return 0;
 }
 
-static int identificare_id_melodie(void *NotUsed, int argc, char** argv, char** azColName) {
+static int afisare_lista_utilizatori_callback(void* NotUsed, int argc, char** argv, char** azColName) {
+    char formatare_utilizator[128];
+    strcpy(formatare_utilizator, "Id: ");
+    strcat(formatare_utilizator, argv[0]);
+    strcat(formatare_utilizator, "  Username: ");
+    strcat(formatare_utilizator, argv[1]);
+    strcat(formatare_utilizator, "  Admin status:");
+    strcat(formatare_utilizator, argv[2]);
+    strcat(formatare_utilizator, "  Vote status:");
+    strcat(formatare_utilizator, argv[3]);
+    strcat(formatare_utilizator, "  Comment status:");
+    strcat(formatare_utilizator, argv[4]);
+    strcpy(lista_utilizatori[nr_utilizatori++], formatare_utilizator);
+    return 0;
+}
+
+static int identificare_id_melodie_callback(void *NotUsed, int argc, char** argv, char** azColName) {
     strcpy(id_melodie, argv[0]);
     return 0;
 }
@@ -234,7 +253,7 @@ void inserare_comentariu(int user_id, char* comentariu, int id_ordine_piesa) {
     strcat(sql_query, lista_melodii[id_ordine_piesa] + 7); // elimin partea de `Title: ` din lista de melodii
     strcat(sql_query, "'");
 
-    int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie, 0, &mesaj_eroare);
+    int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie_callback, 0, &mesaj_eroare);
     if (select_status != SQLITE_OK) {
         printf("Eroare la extragerea id ului real al melodiei -%s!", mesaj_eroare);
         fflush(stdout);
@@ -306,7 +325,7 @@ void stergere_melodie(int id_ordine_piesa) {
     strcat(sql_query, lista_melodii[id_ordine_piesa] + 7); // elimin partea de `Title: ` din lista de melodii
     strcat(sql_query, "'");
 
-    int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie, 0, &mesaj_eroare);
+    int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie_callback, 0, &mesaj_eroare);
     if (select_status != SQLITE_OK) {
         printf("Eroare la extragerea id ului real al melodiei -%s!", mesaj_eroare);
         fflush(stdout);
@@ -323,6 +342,36 @@ void stergere_melodie(int id_ordine_piesa) {
         sqlite3_free(mesaj_eroare);
     }
     printf("Melodie stearsa cu succes!");
+    fflush(stdout);
+}
+
+void afisare_utilizatori() {
+    char sql_query[256] = "SELECT user_id, username, admin_status, vote_status, comment_status FROM users";
+    char* mesaj_eroare;
+    int select_status = sqlite3_exec(db, sql_query, afisare_lista_utilizatori_callback, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la afisarea utilizatorilor -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+}
+
+void administrare_drepturi_vot(int user_id, int grant_status) {
+    char sql_query[128] = "UPDATE users SET vote_status = ";
+    char* mesaj_eroare;
+    if (grant_status == 1) {
+        strcat(sql_query, "1 WHERE user_id = ");
+    } else {
+        strcat(sql_query, "0 WHERE user_id = ");
+    }
+    strcat(sql_query, itoa(user_id));
+    int update_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+    if (update_status != SQLITE_OK) {
+        printf("Eroare eroare la actualizarea drepturilor de vot -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+    printf("Drepturi actualizate cu succes!\n");
     fflush(stdout);
 }
 
@@ -614,7 +663,30 @@ void gestioneaza_clientul(void *arg) {
             break;
         case 7:
             printf("Restrictionarea la vot a unui utilizator.\n");
-            fflush(stdout);
+            afisare_utilizatori();
+
+            // trimit numarul de utulizatori catre client
+            if (write(tdL.cl, &nr_utilizatori, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea numarului de utilizatori catre client!");
+            }
+
+            // trimit lista de utulizatori la client
+            if (write(tdL.cl, lista_utilizatori, sizeof(lista_utilizatori)) <= 0) {
+                perror("Eroare la trimiterea listei de utilizatori catre client!");
+            }
+
+            int id_utilizator_restrctionat;
+            if (read(tdL.cl, &id_utilizator_restrctionat, sizeof(int)) <= 0) {
+                perror("Eroare la primirea id-ului utilizatorului restrictionat de la client!");
+            }
+
+            int grant_status;
+            if (read(tdL.cl, &grant_status, sizeof(int)) <= 0) {
+                perror("Eroare la primirea optiunii de restictie de la client!");
+            }
+
+            administrare_drepturi_vot(id_utilizator_restrctionat, grant_status);
+            nr_utilizatori = 0;
             break;
         case 8:
             printf("Restrictionarea de a comenta a unui utulizator.\n");

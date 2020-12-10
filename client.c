@@ -183,10 +183,14 @@ int main (int argc, char *argv[]) {
         int nr_genuri;
         char lista_genuri[128][128];
 
+        int grant_status;
         int optiune_votare;
         int vote_status;
         int comment_status;
         char comentariu[2047];
+
+        int nr_utilizatori;
+        char lista_utilizatori[128][256];
         switch (optiune) {
             case 1:
                 trimite_melodie_la_server(sd);
@@ -362,6 +366,47 @@ int main (int argc, char *argv[]) {
 
                 printf("Melodie stersa cu succes!");
                 nr_melodii = 0;
+                break;
+            case 7:
+                // primesc numarul de utulizatori de la server
+                if (read(sd, &nr_utilizatori, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea numarului de utilizatori catre server!");
+                }
+
+                // primesc lista de utilizatori de la server
+                if (read(sd, lista_utilizatori, sizeof(lista_utilizatori)) <= 0) {
+                    perror("Eroare la primirea listei de utilizatori catre server!");
+                }
+                
+                for (int i = 0; i < nr_utilizatori; ++i) {
+                    printf("%s\n", lista_utilizatori[i]);
+                }
+
+                printf("Introduceti id-ul utilizatorului dorit: ");
+                scanf("%d", &optiune_votare);
+                while (optiune_votare < 1 || optiune_votare > nr_utilizatori) {
+                    printf("Id incorect, incercati din nou: ");
+                    scanf("%d", &optiune_votare);
+                }
+
+                printf("Introduceti 1 pentru a da drept de vot, 0 pentru a lua dreptul de vot: ");
+                scanf("%d", &grant_status);
+                while (grant_status != 1 && grant_status != 0) {
+                    printf("Optiune incorecta, incercati din nou: ");
+                    scanf("%d", &grant_status);
+                }
+
+                // trimit la server id ul utilizatorului pe care doresc sa il restrictionez
+                if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+                    perror("Eroare la trimiterea id-ului utilizatorului catre server!");
+                }
+
+                // trimit la server intentia cu privire la statusul de votare
+                if (write(sd, &grant_status, sizeof(int)) <= 0) {
+                    perror("Eroare la trimiterea optiunii de acordare a dreptului de votare catre server!");
+                }
+                printf("Drepturi actualizate cu succes!\n");
+                nr_utilizatori = 0;
                 break;
             default:
                 printf("Optiune invalida!");
