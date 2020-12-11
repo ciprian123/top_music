@@ -27,13 +27,14 @@ void afisare_meniu_basic() {
     printf("* Pentru afisarea topului general introduceti `3`\n");
     printf("* Pentru afisarea topului pe genuri introduceti `4`\n");
     printf("* Pentru adaugarea unui comentariu introduceti `5`\n");
+    printf("* Pentru vizualizarea comentariilor unei melodii introduceti `6`\n");
 }
 
 void afisare_meniu_admin() {
     afisare_meniu_basic();
-    printf("* Pentru stergerea unei melodii introduceti `6`\n");                  
-    printf("* Pentru restrictionarea la vot a unui utilizator introduceti `7`\n"); 
-    printf("* Pentru restrictionarea de a comenta a unui utilizator introduceti `8`\n");
+    printf("* Pentru stergerea unei melodii introduceti `7`\n");                  
+    printf("* Pentru restrictionarea la vot a unui utilizator introduceti `8`\n"); 
+    printf("* Pentru restrictionarea de a comenta a unui utilizator introduceti `9`\n");
 }
 
 void trimite_melodie_la_server(int sd) {
@@ -113,6 +114,21 @@ int main (int argc, char *argv[]) {
     int admin_status;
     int vote_status;
     int comment_status;
+    int nr_comentarii = 0;
+    char lista_comentarii[128][3048];
+
+    int nr_melodii;
+    char lista_melodii[2048][128];
+
+    int nr_genuri;
+    char lista_genuri[128][128];
+
+    int grant_status;
+    int optiune_votare;
+    char comentariu[2047];
+
+    int nr_utilizatori;
+    char lista_utilizatori[128][256];
 
     printf("Introduceti nume utilizator: ");
     scanf("%s", nume_utilizator);
@@ -150,6 +166,16 @@ int main (int argc, char *argv[]) {
         perror("Eroare primire comment_status de la client!\n");
     }
 
+    // special pentru a vizualiza comentariile specifice ale unei melodii (case 6)
+    // trimit numarul de melodii catre server
+    if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
+        perror("Eroare la primirea numarului de melodii de la server!");
+    }
+
+    if (read(sd, lista_melodii, sizeof(lista_utilizatori)) <= 0) {
+        perror("Eroare la primirea listei de melodii de la server!");
+    }
+
     if (user_id == -1 && admin_status == -1) {
         printf("Utilizator inexistent sau parola incorecta!\n");
     }
@@ -162,7 +188,7 @@ int main (int argc, char *argv[]) {
             fflush(stdout);
 
             scanf("%d", &optiune);
-            while (optiune < 1 || optiune > 5) {
+            while (optiune < 1 || optiune > 6) {
                 printf("Optiune invalida! Incercati din nou: ");
                 fflush(stdout);
                 
@@ -176,7 +202,7 @@ int main (int argc, char *argv[]) {
             fflush(stdout);
 
             scanf("%d", &optiune);
-            while (optiune < 1 || optiune > 8) {
+            while (optiune < 1 || optiune > 9) {
                 printf("Optiune invalida! Incercati din nou: ");
                 fflush(stdout);
 
@@ -189,18 +215,6 @@ int main (int argc, char *argv[]) {
             perror("Eroare la trimiterea optiunii catre server!\n");
         }
         
-        int nr_melodii;
-        char lista_melodii[2048][128];
-
-        int nr_genuri;
-        char lista_genuri[128][128];
-
-        int grant_status;
-        int optiune_votare;
-        char comentariu[2047];
-
-        int nr_utilizatori;
-        char lista_utilizatori[128][256];
         switch (optiune) {
             case 1:
                 trimite_melodie_la_server(sd);
@@ -345,6 +359,45 @@ int main (int argc, char *argv[]) {
                 }
                 break;
             case 6:
+                printf("Vizualizarea conentariilor unei melodii!");
+
+                for (int i = 0; i < nr_melodii; ++i) {
+                    printf("Id: %d %s\n", i, lista_melodii[i]);
+                }
+
+                printf("Introduceti id-ul melodiei dorite: ");
+                scanf("%d", &optiune_votare);
+
+                while (optiune_votare < 0 || optiune_votare >= nr_melodii) {
+                    printf("Id incorect! Incercati din nou: ");
+                    scanf("%d", &optiune_votare);
+                }
+
+                // trimit serverului id ul melodiei selectate
+                if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+                    perror("Eroare la trimiterea id ului melodiei selectae catre server!");
+                }
+
+                // primesc numarul de comentarii de la server
+                if (read(sd, &nr_comentarii, sizeof(int)) <= 0) {
+                    perror("Eroare la primirea numarului de comentarii de la server!");
+                }
+
+                // primesc lista de comentarii de la server
+                while (read(sd, lista_comentarii, sizeof(lista_comentarii)) <= 0) {
+                    perror("Eroare la primirea listei de comentarii de la server!");
+                }
+                
+                for (int i = 0; i < nr_comentarii; ++i) {
+                    printf("%s\n", lista_comentarii[i]);
+                }
+                if (nr_comentarii == 0) {
+                    printf("Piesa nu are comentare deocamdata!\n");
+                }
+                nr_comentarii = 0;
+                nr_melodii = 0;
+                break;
+            case 7:
                 // primesc numarul de melodii de la server
                 if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
                     perror("Eroarea la primirea numarului de melodii de la server!");
@@ -372,7 +425,7 @@ int main (int argc, char *argv[]) {
                 printf("Melodie stersa cu succes!");
                 nr_melodii = 0;
                 break;
-            case 7:
+            case 8:
                 // primesc numarul de utulizatori de la server
                 if (read(sd, &nr_utilizatori, sizeof(int)) <= 0) {
                     perror("Eroare la primirea numarului de utilizatori catre server!");
@@ -413,7 +466,7 @@ int main (int argc, char *argv[]) {
                 printf("Drepturi actualizate cu succes!\n");
                 nr_utilizatori = 0;
                 break;
-            case 8:
+            case 9:
                 // primesc numarul de utulizatori de la server
                 if (read(sd, &nr_utilizatori, sizeof(int)) <= 0) {
                     perror("Eroare la primirea numarului de utilizatori catre server!");

@@ -48,6 +48,9 @@ char lista_genuri[128][128];
 int nr_utilizatori = 0;
 char lista_utilizatori[128][256];
 
+int nr_comentarii = 0;
+char lista_comentarii[128][3048];
+
 char id_melodie[10];
 
 static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
@@ -128,6 +131,18 @@ static int afisare_lista_utilizatori_callback(void* NotUsed, int argc, char** ar
 
 static int identificare_id_melodie_callback(void *NotUsed, int argc, char** argv, char** azColName) {
     strcpy(id_melodie, argv[0]);
+    return 0;
+}
+
+static int afisare_comentarii_callback(void *NotUsed, int argc, char** argv, char** azColName) {
+    char formatare_piesa[3047];
+    strcpy(formatare_piesa, "Autor: ");
+    strcat(formatare_piesa, argv[0]);
+    strcat(formatare_piesa, "\nData: ");
+    strcat(formatare_piesa, argv[1]);
+    strcat(formatare_piesa, "\nContinut: ");
+    strcat(formatare_piesa, argv[2]);
+    strcpy(lista_comentarii[nr_comentarii++], formatare_piesa);
     return 0;
 }
 
@@ -396,6 +411,37 @@ void administrare_drepturi_comentare(int user_id, int grant_status) {
     fflush(stdout);
 }
 
+void afisare_comentarii_melodie(int id_ordine_piesa) {
+    char sql_query[512] = "SELECT song_id FROM songs WHERE title = '";
+    char* mesaj_eroare;
+    strcat(sql_query, lista_melodii[id_ordine_piesa] + 7); // elimin partea de `Title: ` din lista de melodii
+    strcat(sql_query, "'");
+
+    int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie_callback, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la extragerea id ului real al melodiei -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+
+    strcpy(sql_query, "select u.username, c.created_at, c.content from users u join comments c on u.user_id = c.user_id join songs s on c.song_id = s.song_id where s.song_id = ");
+    //strcpy(sql_query, "SELECT user_id, created_at, content from comments where song_id = ");
+    strcat(sql_query, id_melodie);
+
+    printf("%s\n", sql_query);
+    fflush(stdout);
+
+    select_status = sqlite3_exec(db, sql_query, afisare_comentarii_callback, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare afisarea comentariilor asociate melodiei -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+
+    printf("Comentarii afisate cu succes!\n");
+    fflush(stdout);
+}
+
 int main () {
     struct sockaddr_in server;	// structura folosita de server
     struct sockaddr_in from;	
@@ -525,6 +571,19 @@ void gestioneaza_clientul(void *arg) {
         perror("Eroare la trimitere comment_status catre client!");
     }
 
+    // special pentru a vizualiza comentariile specifice ale unei melodii (case 6)
+    afisare_lista_generala_melodii();
+    
+    // trimit numarul de melodii catre server
+    if (write(tdL.cl, &nr_melodii, sizeof(int)) <= 0) {
+        perror("Eroare la trimiterea numarului de melodii catre client!");
+    }
+
+    nr_melodii = 0;
+    if (write(tdL.cl, lista_melodii, sizeof(lista_utilizatori)) <= 0) {
+        perror("Eroare la trimiterea listei de melodii catre client!");
+    }
+
     // primesc optiunea alease de client
     int optiune;
     if (read(tdL.cl, &optiune, sizeof(int)) <= 0) {
@@ -559,7 +618,7 @@ void gestioneaza_clientul(void *arg) {
                 if (write(tdL.cl, &nr_melodii, sizeof(int)) <= 0) {
                     perror("Eroare la trimiterea numarului de melodii catre client!");
                 }
-                nr_melodii = 0;
+
                 // trimit la client 'view-ul' de melodii pentru a fi votate
                 if (write(tdL.cl, &lista_melodii, sizeof(lista_melodii)) <= 0) {
                     perror("Eroare la trimiterea melodiilor de votat!");
@@ -574,6 +633,8 @@ void gestioneaza_clientul(void *arg) {
                 printf("Optiune votare: %d\n", optiune_votare);
                 marcare_votare_melodie(user_id, optiune_votare);
                 fflush(stdout);
+
+                nr_melodii = 0;
             }
             break;
         case 3:
@@ -592,11 +653,7 @@ void gestioneaza_clientul(void *arg) {
             }
 
             top_melodii_index = 0;
-            for (int i = 0; i < top_melodii_index; ++i) {
-                printf("%s\n", top_melodii[i]);
-                fflush(stdout);
-            }
-            fflush(stdout);
+            nr_melodii = 0;
             break;
         case 4:
             printf("Afisarea topului pe genuri.\n");
@@ -631,7 +688,7 @@ void gestioneaza_clientul(void *arg) {
                 perror("Eroare la trimiterea topului de melodii filtrat la client!");
             }
 
-            top_melodii_index = nr_genuri = 0;
+            top_melodii_index = nr_genuri = nr_melodii = 0;
             break;
         case 5:
             printf("Comentarea unei melodii.\n");
@@ -647,7 +704,6 @@ void gestioneaza_clientul(void *arg) {
                 perror("Eroare la trimiterea listei de melodii la client!");
             }
 
-            nr_melodii = 0;
             if (comment_status == 1) {
                 // primesc id-ul melodiei pe care doresc sa o votez
                 int id_ordine_melodie;
@@ -669,8 +725,34 @@ void gestioneaza_clientul(void *arg) {
                 printf("Nu aveti drep de a comenta! Contactati un admin!\n");
                 fflush(stdout);
             }
+
+            nr_melodii = 0;
             break;
         case 6:
+            printf("Vizualizarea comentariilor unei melodii!\n");
+            afisare_lista_generala_melodii();
+
+            // primesc id-ul melodiei dorite de client
+            int id_optiune_melodie;
+            if (read(tdL.cl, &id_optiune_melodie, sizeof(int)) <= 0) {
+                perror("Eroare la primirea id-ului melodiei dorite de la client!");
+            }
+
+            afisare_comentarii_melodie(id_optiune_melodie);
+
+            // trimit numarul de comentarii catre client
+            if (write(tdL.cl, &nr_comentarii, sizeof(int)) <= 0) {
+                perror("Eroare la trimiterea numarului de comentarii la client!\n");
+            }
+
+            //trimit lista de comentarii la client
+            if (write(tdL.cl, lista_comentarii, sizeof(lista_comentarii)) <= 0) {
+                perror("Eroare la trimiterea listei de comentarii la client!");
+            }
+
+            nr_comentarii = nr_melodii = 0;
+            break;
+        case 7:
             printf("Stergerea unei melodii.\n");
             afisare_lista_generala_melodii();
             // trimit numarul de melodii la client
@@ -690,7 +772,7 @@ void gestioneaza_clientul(void *arg) {
             }
             stergere_melodie(id_ordine_melodie);
             break;
-        case 7:
+        case 8:
             printf("Restrictionarea la vot a unui utilizator.\n");
             afisare_utilizatori();
 
@@ -717,7 +799,7 @@ void gestioneaza_clientul(void *arg) {
             administrare_drepturi_vot(id_utilizator_restrctionat, grant_status);
             nr_utilizatori = 0;
             break;
-        case 8:
+        case 9:
             printf("Restrictionarea de a comenta a unui utulizator.\n");
             fflush(stdout);
 
@@ -750,6 +832,6 @@ void gestioneaza_clientul(void *arg) {
             break;
     }
 
-
+    nr_melodii = 0;
     user_id = admin_status = comment_status = vote_status = -1; // resetam valorile atributelor
 }
