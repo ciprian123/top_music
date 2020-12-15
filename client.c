@@ -288,11 +288,6 @@ int main (int argc, char *argv[]) {
                 trimite_melodie_la_server(sd);
                 break;
             case 2:
-                // primesc statusul de vot al clientului
-                //if (read(sd, &vote_status, sizeof(int)) <= 0) {
-                //    perror("Eroare la primirea vote_status de la server!");
-                //}
-
                 if (vote_status == 1) {
                     // primesc numarul de melodii de la server
                     if (read(sd, &nr_melodii, sizeof(int)) <= 0) {
@@ -315,7 +310,7 @@ int main (int argc, char *argv[]) {
                         perror("Eroare la trimiterea id-ului catre server");
                     }
 
-                    printf("Melodia a fost votata cu succes!");
+                    printf("Melodia a fost votata cu succes! Daca votati aceeasi piesa de mai multe ori este valabil doar primul vot!\n");
                 } else {
                     printf("Nu aveti drepturi de vot! Contactati un admin!\n");
                 }

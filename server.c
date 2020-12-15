@@ -55,11 +55,18 @@ char id_melodie[10];
 
 int already_exists_user = 0;
 
+int piesa_votata_deja = 0;
+
 static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
 void gestioneaza_clientul(void *);
 
 static int utilizator_deja_existent_callback(void *NotUsed, int argc, char **argv, char **azColName) {
     already_exists_user = 1;
+    return 0;
+}
+
+static int piesa_votata_deja_callback(void *NotUsed, int argc, char **argv, char **azColName) {
+    piesa_votata_deja = 1;
     return 0;
 }
 
@@ -255,13 +262,31 @@ void inserare_melodie(char date_melodie[6][512], int user_id) {
 }
 
 void marcare_votare_melodie(int user_id, int song_id) {
-    char sql_query[128] = "UPDATE songs SET no_of_votes = no_of_votes + 1 WHERE song_id = ";
+    char sql_query[128] = "SELECT * FROM votes WHERE user_id = ";
+    strcat(sql_query, itoa(user_id));
+    strcat(sql_query, " AND song_id = ");
+    strcat(sql_query, itoa(song_id));
     char* mesaj_eroare;
+
+    int status_interogare = sqlite3_exec(db, sql_query, piesa_votata_deja_callback, 0, &mesaj_eroare);
+    if (status_interogare != SQLITE_OK) {
+        printf("Eroare la verificarea votarii deja existente - %s\n", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+
+    // fiecare utilizator voteaza o singura data
+    if (piesa_votata_deja == 1) {
+        piesa_votata_deja = 0;
+        return;
+    }
+
+    strcpy(sql_query, "UPDATE songs SET no_of_votes = no_of_votes + 1 WHERE song_id = ");
     strcat(sql_query, itoa(song_id));
     printf("%s\n", sql_query);
     fflush(stdout);
 
-    int status_interogare = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+    status_interogare = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
     if (status_interogare != SQLITE_OK) {
         printf("Eroare la actualizarea numarului de voturi - %s\n", mesaj_eroare);
         fflush(stdout);
@@ -470,7 +495,6 @@ void afisare_comentarii_melodie(int id_ordine_piesa) {
     }
 
     strcpy(sql_query, "select u.username, c.created_at, c.content from users u join comments c on u.user_id = c.user_id join songs s on c.song_id = s.song_id where s.song_id = ");
-    //strcpy(sql_query, "SELECT user_id, created_at, content from comments where song_id = ");
     strcat(sql_query, id_melodie);
 
     printf("%s\n", sql_query);
@@ -553,9 +577,6 @@ int main () {
 	    }
 	
         /* s-a realizat conexiunea, se astepta mesajul */
-    
-	    // int idThread; //id-ul threadului
-	    // int cl; //descriptorul intors de accept
         td=(struct thData*)malloc(sizeof(struct thData));	
         td->idThread=i++;
         td->cl=client;
@@ -666,11 +687,6 @@ void gestioneaza_clientul(void *arg) {
             break;
         case 2:
             printf("Votarea unei melodii.\n");
-            
-            // trimit vote_status ul clientului catre acesta
-            //if (write(tdL.cl, &vote_status, sizeof(int)) <= 0) {
-            //    perror("Eroare la trimiterea statusului de vot catre client!");
-            //}
             if (vote_status == 1) {
                  votare_melodie();
 
