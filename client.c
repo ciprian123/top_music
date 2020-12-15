@@ -130,6 +130,72 @@ int main (int argc, char *argv[]) {
     int nr_utilizatori;
     char lista_utilizatori[128][256];
 
+    printf("Pentru creare cont introduceti `1`\n");
+    printf("Pentru logare introduceti `2`\n");
+
+    scanf("%d", &optiune_votare);
+    while (optiune_votare < 1 || optiune_votare > 2) {
+        printf("Optiune incorecta, incercati din nou: ");
+        scanf("%d", &optiune_votare);
+    }
+
+    fgetc(stdin);
+    if (optiune_votare == 1) {
+        printf("Introduceti un username: ");
+        fgets(nume_utilizator, 64, stdin);
+        nume_utilizator[strlen(nume_utilizator) - 1] = '\0';
+
+        printf("Introduceti parola: ");
+        fgets(parola, 64, stdin);
+        parola[strlen(parola) - 1] = '\0';
+
+        char parola_temporara[64];
+        printf("Introduceti parola pentru confirmare: ");
+        fgets(parola_temporara, 64, stdin);
+        parola_temporara[strlen(parola_temporara) - 1] = '\0';
+
+        while (strcmp(parola_temporara, parola) != 0) {
+            printf("Introduceti parola din nou: ");
+            fgets(parola, 64, stdin);
+            parola[strlen(parola) - 1] = '\0';
+
+            printf("Introduceti parola pentru confirmare din nou: ");
+            fgets(parola_temporara, 64, stdin);
+            parola_temporara[strlen(parola_temporara) - 1] = '\0';
+
+            printf("parola: %d\n", strlen(parola));
+            printf("parola tmp: %d\n", strlen(parola_temporara));
+        }
+
+        // trimit numele de utilizator catre server
+        if (write(sd, nume_utilizator, sizeof(nume_utilizator)) <= 0) {
+            perror("Eroare la trimitere nume_utilizator catre server!\n");
+        }
+
+        // trimit parola catre server
+        if (write(sd, parola, sizeof(parola)) <= 0) {
+            perror("Eroare la trimitere parola catre server!\n");
+        }
+
+        // trimit optiune de creare cont la server
+        if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+            perror("Eroare la trimitere optiunii de creare cont la server!\n");
+        }
+
+        // trimit statusul de creare cont la client
+        int creare_cont_status;
+        if (read(sd, &creare_cont_status, sizeof(int)) <= 0) {
+            perror("Eroare la trimiterea statusului crearii contului catre client!");
+        } 
+
+        if (creare_cont_status == 1) {
+            printf("Utilizator creat cu succes!\n");
+        } else {
+            printf("Utilizatorul exista deja! Incercati cu alte date!\n");
+        }
+    }
+    else {
+
     printf("Introduceti nume utilizator: ");
     scanf("%s", nume_utilizator);
 
@@ -144,6 +210,11 @@ int main (int argc, char *argv[]) {
     // trimit parola catre server
     if (write(sd, parola, sizeof(parola)) <= 0) {
         perror("Eroare la trimitere parola catre server!\n");
+    }
+
+    optiune_votare = 2;
+    if (write(sd, &optiune_votare, sizeof(int)) <= 0) {
+        perror("Eroare la trimitere optiunii de creare cont la server!\n");
     }
 
     // primesc user_id de la server
@@ -515,4 +586,5 @@ int main (int argc, char *argv[]) {
 
     /* inchidem conexiunea, am terminat */
     close (sd);
+    }
 }

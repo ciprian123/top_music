@@ -53,8 +53,15 @@ char lista_comentarii[128][3048];
 
 char id_melodie[10];
 
+int already_exists_user = 0;
+
 static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
 void gestioneaza_clientul(void *);
+
+static int utilizator_deja_existent_callback(void *NotUsed, int argc, char **argv, char **azColName) {
+    already_exists_user = 1;
+    return 0;
+}
 
 static int login_callback(void *NotUsed, int argc, char **argv, char **azColName) {
     user_id = atoi(argv[0]);
@@ -144,6 +151,46 @@ static int afisare_comentarii_callback(void *NotUsed, int argc, char** argv, cha
     strcat(formatare_piesa, argv[2]);
     strcpy(lista_comentarii[nr_comentarii++], formatare_piesa);
     return 0;
+}
+
+int creare_cont(sqlite3* db, char* nume_utilizator, char* parola) {
+    char sql_query[512] = "SELECT * FROM users WHERE username = '";
+    char* mesaj_eroare;
+
+    strcat(sql_query, nume_utilizator);
+    strcat(sql_query, "'");
+    strcat(sql_query, " AND password = '");
+    strcat(sql_query, parola);
+    strcat(sql_query, "'");
+
+    int select_status = sqlite3_exec(db, sql_query, utilizator_deja_existent_callback, 0, &mesaj_eroare);
+    if (select_status != SQLITE_OK) {
+        printf("Eroare la cautarea utilizatorului - %s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+    if (already_exists_user == 1) {
+        already_exists_user = -1;
+        return -1; // utilizatorul exista deja
+    }
+    else {
+        strcpy(sql_query, "INSERT INTO users (username, password, admin_status, comment_status, vote_status, created_at) VALUES ('");
+        strcat(sql_query, nume_utilizator);
+        strcat(sql_query, "',");
+        strcat(sql_query, "'");
+        strcat(sql_query, parola);
+        strcat(sql_query, "',");
+        strcat(sql_query, " 0, 1, 1, DATE('NOW'))");
+        //printf("%s\n", sql_query);
+        //fflush(stdout);
+        select_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+        if (select_status != SQLITE_OK) {
+            printf("Eroare la cautarea utilizatorului - %s!", mesaj_eroare);
+            fflush(stdout);
+            sqlite3_free(mesaj_eroare);
+        }
+    }
+    return 1;
 }
 
 void autentificare_utilizator(sqlite3* db, char* nume_utilizator, char* parola) {
@@ -549,8 +596,23 @@ void gestioneaza_clientul(void *arg) {
         perror("Eroare la primire parola de la client!");
     }
 
-    autentificare_utilizator(db, nume_utilizator, parola);
+    int optiune;
+    // citesc optiunea de autentificare/creare cont de la client
+    if (read(tdL.cl, &optiune, sizeof(int)) <= 0) {
+        perror("Eroare la primire parola de la client!");
+    }   
 	
+    if (optiune == 1) {
+        int creare_cont_status = creare_cont(db, nume_utilizator, parola);
+        
+        // trimit statusul de creare cont la client
+        if (write(tdL.cl, &creare_cont_status, sizeof(int)) <= 0) {
+            perror("Eroare la trimiterea statusului crearii contului catre client!");
+        } 
+    }
+    else  {
+    
+    autentificare_utilizator(db, nume_utilizator, parola);
     // trimit user_id catre client
     if (write(tdL.cl, &user_id, sizeof(int)) <= 0) {
         perror("Eroare la trimitere user_id catre client!");
@@ -833,5 +895,6 @@ void gestioneaza_clientul(void *arg) {
     }
 
     nr_melodii = 0;
-    user_id = admin_status = comment_status = vote_status = -1; // resetam valorile atributelor
+    already_exists_user = user_id = admin_status = comment_status = vote_status = -1; // resetam valorile atributelor
+    }
 }
