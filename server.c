@@ -452,8 +452,6 @@ void administrare_drepturi_comentare(int user_id, int grant_status) {
         fflush(stdout);
         sqlite3_free(mesaj_eroare);
     }
-    printf(sql_query);
-    fflush(stdout);
     printf("Drepturi actualizate cu succes!\n");
     fflush(stdout);
 }

@@ -132,7 +132,7 @@ int main (int argc, char *argv[]) {
 
     printf("Pentru creare cont introduceti `1`\n");
     printf("Pentru logare introduceti `2`\n");
-
+    printf("Introduceti optiunea: ");
     scanf("%d", &optiune_votare);
     while (optiune_votare < 1 || optiune_votare > 2) {
         printf("Optiune incorecta, incercati din nou: ");
@@ -162,9 +162,6 @@ int main (int argc, char *argv[]) {
             printf("Introduceti parola pentru confirmare din nou: ");
             fgets(parola_temporara, 64, stdin);
             parola_temporara[strlen(parola_temporara) - 1] = '\0';
-
-            printf("parola: %d\n", strlen(parola));
-            printf("parola tmp: %d\n", strlen(parola_temporara));
         }
 
         // trimit numele de utilizator catre server
