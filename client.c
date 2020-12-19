@@ -118,7 +118,7 @@ int main (int argc, char *argv[]) {
     char lista_comentarii[128][3048];
 
     int nr_melodii;
-    char lista_melodii[2048][128];
+    char lista_melodii[2048][512];
 
     int nr_genuri;
     char lista_genuri[128][128];
@@ -300,7 +300,7 @@ int main (int argc, char *argv[]) {
                     }
 
                     for (int i = 0; i < nr_melodii; ++i) {
-                        printf("%s\n", lista_melodii[i]);
+                        printf("%s\n\n", lista_melodii[i]);
                     }
                     printf("Introduceti id-ul melodiei votate: ");
                     scanf("%d", &optiune_votare);
@@ -328,7 +328,7 @@ int main (int argc, char *argv[]) {
 
                 printf("Topul general al melodiilor:\n");
                 for (int i = 0; i < nr_melodii; ++i) {
-                    printf("%s\n", lista_melodii[i]);
+                    printf("%s\n\n", lista_melodii[i]);
                 }
 
                 break;
@@ -343,7 +343,7 @@ int main (int argc, char *argv[]) {
                     perror("Eroare la primirea numarului de genuri de la server!");
                 }
 
-                printf("Genurile topului muzical:");
+                printf("Genurile topului muzical: \n");
                 for (int i = 0; i < nr_genuri; ++i) {
                     printf("%d. %s\n", i, lista_genuri[i]);
                 }
@@ -373,7 +373,7 @@ int main (int argc, char *argv[]) {
 
                 printf("Topul melodiilor in genul %s:\n", lista_genuri[optiune_votare]);
                 for (int i = 0; i < nr_melodii; ++i) {
-                    printf("%s\n", lista_melodii[i]);
+                    printf("%s\n\n", lista_melodii[i]);
                 }
                 break;
             case 5:
@@ -389,7 +389,7 @@ int main (int argc, char *argv[]) {
 
                 if (comment_status == 1) {
                     for (int i = 0; i < nr_melodii; ++i) {
-                        printf("Id: %d     %s\n", i, lista_melodii[i]);
+                        printf("Id: %d     %s\n\n", i, lista_melodii[i]);
                     }
             
                     printf("Introduceti id-ul melodiei pentru care adaugati comentariu: ");
@@ -470,7 +470,7 @@ int main (int argc, char *argv[]) {
                     perror("Eroare la primirea listei de melodii de la server!");
                 }
                 for (int i = 0; i < nr_melodii; ++i) {
-                    printf("Id: %d %s\n", i, lista_melodii[i]);
+                    printf("Id: %d %s\n\n", i, lista_melodii[i]);
                 }
 
                 printf("Introduceti id-ul melodiei pe care doriti sa o stergeti: ");

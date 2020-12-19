@@ -37,10 +37,10 @@ int comment_status = -1;
 int vote_status = -1;
 
 int nr_melodii = 0;
-char lista_melodii[2048][128];
+char lista_melodii[2048][512];
 
 int top_melodii_index = 0;
-char top_melodii[2048][128];
+char top_melodii[2048][512];
 
 int nr_genuri = 0;
 char lista_genuri[128][128];
@@ -79,24 +79,28 @@ static int login_callback(void *NotUsed, int argc, char **argv, char **azColName
 }
 
 static int votare_melodie_callback(void *NotUsed, int argc, char** argv, char **azColName) {
-    char formatare_piesa[128];
+    char formatare_piesa[512];
     strcpy(formatare_piesa, "Id: ");
     strcat(formatare_piesa, argv[0]);
     strcat(formatare_piesa, "     Title: ");
     strcat(formatare_piesa, argv[1]);
     strcat(formatare_piesa, "     No of votes: ");
     strcat(formatare_piesa, argv[2]);
+    strcat(formatare_piesa, "\nURL: ");
+    strcat(formatare_piesa, argv[3]);
 
     strcpy(lista_melodii[nr_melodii++],  formatare_piesa);
     return 0;
 }
 
 static int proceseaza_topul_general_callback(void *NotUsed, int argc, char** argv, char **azColName) {
-    char formatare_piesa[128];
+    char formatare_piesa[512];
     strcpy(formatare_piesa, "Titlu: ");
     strcat(formatare_piesa, argv[0]);
     strcat(formatare_piesa, "    Nr voturi: ");
     strcat(formatare_piesa, argv[1]);
+    strcat(formatare_piesa, "\nURL: ");
+    strcat(formatare_piesa, argv[2]);
 
     strcpy(top_melodii[top_melodii_index++], formatare_piesa);
     return 0;
@@ -108,20 +112,24 @@ static int proceseaza_genuri_melodii_callback(void *NotUsed, int argc, char** ar
 }
 
 static int filtreaza_top_dupa_gen_callback(void* NotUsed, int argc, char** argv, char **azColName) {
-    char formatare_piesa[128];
+    char formatare_piesa[512];
     strcpy(formatare_piesa, "Titlu: ");
     strcat(formatare_piesa, argv[0]);
     strcat(formatare_piesa, "     Nr voturi: ");
     strcat(formatare_piesa, argv[1]);
+    strcat(formatare_piesa, "\nURL: ");
+    strcat(formatare_piesa, argv[2]);
 
     strcpy(top_melodii[top_melodii_index++], formatare_piesa);
     return 0;
 }
 
 static int afisare_lista_melodii_callback(void *NotUsed, int argc, char** argv, char** azColName) {
-    char formatare_piesa[128];
+    char formatare_piesa[512];
     strcpy(formatare_piesa, "Titlu: ");
     strcat(formatare_piesa, argv[0]);
+    strcat(formatare_piesa, "\nURL: ");
+    strcat(formatare_piesa, argv[1]);
 
     strcpy(lista_melodii[nr_melodii++], formatare_piesa);
     return 0;
@@ -311,7 +319,7 @@ void marcare_votare_melodie(int user_id, int song_id) {
 }
 
 void votare_melodie() {
-    char sql_query[128] = "SELECT song_id, title, no_of_votes FROM songs";
+    char sql_query[128] = "SELECT song_id, title, no_of_votes, url FROM songs";
     char* mesaj_eroare;
 
     int select_status = sqlite3_exec(db, sql_query, votare_melodie_callback, 0, &mesaj_eroare);
@@ -323,7 +331,7 @@ void votare_melodie() {
 }
 
 void afisare_lista_generala_melodii() {
-    char sql_query[128] = "SELECT title FROM songs";
+    char sql_query[128] = "SELECT title, url FROM songs";
     char* mesaj_eroare;
 
     int select_status = sqlite3_exec(db, sql_query, afisare_lista_melodii_callback, 0, &mesaj_eroare);
@@ -369,7 +377,7 @@ void inserare_comentariu(int user_id, char* comentariu, int id_ordine_piesa) {
 }
 
 void afisare_top_general() {
-    char sql_query[128] = "SELECT title, no_of_votes FROM songs ORDER BY no_of_votes DESC";
+    char sql_query[128] = "SELECT title, no_of_votes, url FROM songs ORDER BY no_of_votes DESC";
     char* mesaj_eroare;
 
     int select_status = sqlite3_exec(db, sql_query, proceseaza_topul_general_callback, 0, &mesaj_eroare);
@@ -393,7 +401,7 @@ void afisare_lista_genuri() {
 }
 
 void filtrare_top_dupa_genuri(int gen_id) {
-    char sql_query[128] = "SELECT title, no_of_votes FROM songs WHERE genre = '";
+    char sql_query[128] = "SELECT title, no_of_votes, url FROM songs WHERE genre = '";
     char* mesaj_eroare;
     strcat(sql_query, lista_genuri[gen_id]);
     strcat(sql_query, "' ORDER BY no_of_votes DESC");
@@ -744,6 +752,11 @@ void gestioneaza_clientul(void *arg) {
             // trimit la client lista de genuri
             if (write(tdL.cl, lista_genuri, sizeof(lista_genuri)) <= 0) {
                 perror("Eroare la trimiterea listei de genuri catre client!");
+            }
+
+            for (int i = 0; i < nr_genuri; ++i) {
+                printf("%s\n", lista_genuri[i]);
+                fflush(stdout);
             }
             
             int optiune_gen;
