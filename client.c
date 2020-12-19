@@ -1,6 +1,6 @@
 /* 
     Client concurent TCP realizat de Ciprian Ursulean - adaptat dupa cel creat de catre Lenuta Aloaie de pe site-ul de retele al facultatii
-    La realizarea acestui client s-au realizat si informatii de pe urmatoarele siteuri:
+    La realizarea acestui client s-au utilizat si informatii de pe urmatoarele siteuri:
         https://profs.info.uaic.ro/~computernetworks/cursullaboratorul.php
         https://www.youtube.com/?hl=ro&gl=RO
         https://www.sqlite.org/cintro.html
