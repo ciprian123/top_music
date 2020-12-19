@@ -389,7 +389,7 @@ void afisare_top_general() {
 }
 
 void afisare_lista_genuri() {
-    char sql_query[128] = "SELECT DISTINCT genre FROM songs";
+    char sql_query[128] = "SELECT DISTINCT UPPER(genre) FROM songs";
     char* mesaj_eroare;
 
     int select_status = sqlite3_exec(db, sql_query, proceseaza_genuri_melodii_callback, 0, &mesaj_eroare);
@@ -401,7 +401,7 @@ void afisare_lista_genuri() {
 }
 
 void filtrare_top_dupa_genuri(int gen_id) {
-    char sql_query[128] = "SELECT title, no_of_votes, url FROM songs WHERE genre = '";
+    char sql_query[128] = "SELECT title, no_of_votes, url FROM songs WHERE UPPER(genre) = '";
     char* mesaj_eroare;
     strcat(sql_query, lista_genuri[gen_id]);
     strcat(sql_query, "' ORDER BY no_of_votes DESC");
@@ -752,11 +752,6 @@ void gestioneaza_clientul(void *arg) {
             // trimit la client lista de genuri
             if (write(tdL.cl, lista_genuri, sizeof(lista_genuri)) <= 0) {
                 perror("Eroare la trimiterea listei de genuri catre client!");
-            }
-
-            for (int i = 0; i < nr_genuri; ++i) {
-                printf("%s\n", lista_genuri[i]);
-                fflush(stdout);
             }
             
             int optiune_gen;
