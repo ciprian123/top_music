@@ -1,7 +1,12 @@
-/* cliTCPIt.c - Exemplu de client TCP
-   Trimite un numar la server; primeste de la server numarul incrementat.
-         
-   Autor: Lenuta Alboaie  <adria@infoiasi.ro> (c)2009
+/* 
+    Client concurent TCP realizat de Ciprian Ursulean - adaptat dupa cel creat de catre Lenuta Aloaie de pe site-ul de retele al facultatii
+    La realizarea acestui client s-au realizat si informatii de pe urmatoarele siteuri:
+        https://profs.info.uaic.ro/~computernetworks/cursullaboratorul.php
+        https://www.youtube.com/?hl=ro&gl=RO
+        https://www.sqlite.org/cintro.html
+        https://www.geeksforgeeks.org/sql-using-c-c-and-sqlite/
+        http://zetcode.com/db/sqlitec/
+        https://stackoverflow.com/questions/28969543/fatal-error-sqlite3-h-no-such-file-or-directory/31764947
 */
 #include <sys/types.h>
 #include <sys/socket.h>

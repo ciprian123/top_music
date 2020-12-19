@@ -1,8 +1,12 @@
-/* servTCPConcTh2.c - Exemplu de server TCP concurent care deserveste clientii
-   prin crearea unui thread pentru fiecare client.
-   Asteapta un numar de la clienti si intoarce clientilor numarul incrementat.
-   Intoarce corect identificatorul din program al thread-ului.
-   Autor: Lenuta Alboaie  <adria@infoiasi.ro> (c)2009
+/* 
+    Server concurent TCP realizat de Ciprian Ursulean - adaptat dupa cel creat de catre Lenuta Alboaie de pe siteul de retele al facultatii.
+    La realizarea acestui server s-au utilizat si informatii de la urmatoarele site-uri:
+        https://profs.info.uaic.ro/~computernetworks/cursullaboratorul.php
+        https://www.youtube.com/?hl=ro&gl=RO
+        https://www.sqlite.org/cintro.html
+        https://www.geeksforgeeks.org/sql-using-c-c-and-sqlite/
+        http://zetcode.com/db/sqlitec/
+        https://stackoverflow.com/questions/28969543/fatal-error-sqlite3-h-no-such-file-or-directory/31764947
 */
 
 #include <sys/types.h>
