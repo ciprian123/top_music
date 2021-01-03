@@ -421,7 +421,16 @@ void filtrare_top_dupa_genuri(int gen_id) {
 void stergere_melodie(int id_ordine_piesa) {
     char sql_query[128] = "SELECT song_id FROM songs WHERE title = '";
     char* mesaj_eroare;
-    strcat(sql_query, lista_melodii[id_ordine_piesa] + 7); // elimin partea de `Title: ` din lista de melodii
+
+    char titlu_tmp[128];
+    int idx = 0;
+    strcpy(titlu_tmp, lista_melodii[id_ordine_piesa] + 7);
+    while (idx < strlen(titlu_tmp) && titlu_tmp[idx] != '\n') {
+        idx++;
+    }
+    titlu_tmp[idx] = '\0';
+
+    strcat(sql_query, titlu_tmp); // elimin partea de `Title: ` din lista de melodii
     strcat(sql_query, "'");
 
     int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie_callback, 0, &mesaj_eroare);
@@ -433,6 +442,8 @@ void stergere_melodie(int id_ordine_piesa) {
 
     strcpy(sql_query, "DELETE FROM songs WHERE song_id = ");
     strcat(sql_query, id_melodie);
+    printf("id = %s", id_melodie);
+    fflush(stdout);
 
     int delete_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
     if (delete_status != SQLITE_OK) {
@@ -440,6 +451,27 @@ void stergere_melodie(int id_ordine_piesa) {
         fflush(stdout);
         sqlite3_free(mesaj_eroare);
     }
+
+    // stergem si comentariile asociate melodiei
+    strcpy(sql_query, "DELETE FROM comments WHERE song_id = ");
+    strcat(sql_query, id_melodie);
+    delete_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+    if (delete_status != SQLITE_OK) {
+        printf("Eroare la stergerea comentariilor asociate melodiei -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+
+    // stergem si voturile asociate melodiei
+    strcpy(sql_query, "DELETE FROM votes WHERE song_id = ");
+    strcat(sql_query, id_melodie);
+    delete_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
+    if (delete_status != SQLITE_OK) {
+        printf("Eroare la stergerea voturilor asociate melodiei -%s!", mesaj_eroare);
+        fflush(stdout);
+        sqlite3_free(mesaj_eroare);
+    }
+
     printf("Melodie stearsa cu succes!");
     fflush(stdout);
 }
