@@ -349,7 +349,16 @@ void afisare_lista_generala_melodii() {
 void inserare_comentariu(int user_id, char* comentariu, int id_ordine_piesa) {
     char sql_query[128] = "SELECT song_id FROM songs WHERE title = '";
     char* mesaj_eroare;
-    strcat(sql_query, lista_melodii[id_ordine_piesa] + 7); // elimin partea de `Title: ` din lista de melodii
+
+    char titlu_tmp[128];
+    int idx = 0;
+    strcpy(titlu_tmp, lista_melodii[id_ordine_piesa] + 7);
+    while (idx < strlen(titlu_tmp) && titlu_tmp[idx] != '\n') {
+        idx++;
+    }
+    titlu_tmp[idx] = '\0';
+
+    strcat(sql_query, titlu_tmp); // elimin partea de `Title: ` din lista de melodii
     strcat(sql_query, "'");
 
     int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie_callback, 0, &mesaj_eroare);
@@ -528,7 +537,15 @@ void administrare_drepturi_comentare(int user_id, int grant_status) {
 void afisare_comentarii_melodie(int id_ordine_piesa) {
     char sql_query[512] = "SELECT song_id FROM songs WHERE title = '";
     char* mesaj_eroare;
-    strcat(sql_query, lista_melodii[id_ordine_piesa] + 7); // elimin partea de `Title: ` din lista de melodii
+
+    char titlu_tmp[128];
+    int idx = 0;
+    strcpy(titlu_tmp, lista_melodii[id_ordine_piesa] + 7);
+    while (idx < strlen(titlu_tmp) && titlu_tmp[idx] != '\n') {
+        idx++;
+    }
+    titlu_tmp[idx] = '\0';
+    strcat(sql_query, titlu_tmp); // elimin partea de `Title: ` din lista de melodii
     strcat(sql_query, "'");
 
     int select_status = sqlite3_exec(db, sql_query, identificare_id_melodie_callback, 0, &mesaj_eroare);
