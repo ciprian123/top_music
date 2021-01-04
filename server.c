@@ -22,15 +22,12 @@
 #include <sqlite3.h>
 
 
-/* portul folosit */
 #define PORT 2908
-
-/* codul de eroare returnat de anumite apeluri */
 extern int errno;
 
 typedef struct thData{
-	int idThread; //id-ul thread-ului tinut in evidenta de acest program
-	int cl; //descriptorul intors de accept
+	int idThread;
+	int cl;
 } thData;
 
 
@@ -61,20 +58,20 @@ int already_exists_user = 0;
 
 int piesa_votata_deja = 0;
 
-static void *treat(void *); /* functia executata de fiecare thread ce realizeaza comunicarea cu clientii */
+static void *treat(void *);
 void gestioneaza_clientul(void *);
 
-static int utilizator_deja_existent_callback(void *NotUsed, int argc, char **argv, char **azColName) {
+static int utilizator_deja_existent_callback(void *not_used_prt, int argc, char **argv, char **azColName) {
     already_exists_user = 1;
     return 0;
 }
 
-static int piesa_votata_deja_callback(void *NotUsed, int argc, char **argv, char **azColName) {
+static int piesa_votata_deja_callback(void *not_used_prt, int argc, char **argv, char **azColName) {
     piesa_votata_deja = 1;
     return 0;
 }
 
-static int login_callback(void *NotUsed, int argc, char **argv, char **azColName) {
+static int login_callback(void *not_used_prt, int argc, char **argv, char **azColName) {
     user_id = atoi(argv[0]);
     admin_status = atoi(argv[1]);
     comment_status = atoi(argv[2]);
@@ -82,7 +79,7 @@ static int login_callback(void *NotUsed, int argc, char **argv, char **azColName
     return 0;
 }
 
-static int votare_melodie_callback(void *NotUsed, int argc, char** argv, char **azColName) {
+static int votare_melodie_callback(void *not_used_prt, int argc, char** argv, char **azColName) {
     char formatare_piesa[512];
     strcpy(formatare_piesa, "Id: ");
     strcat(formatare_piesa, argv[0]);
@@ -97,7 +94,7 @@ static int votare_melodie_callback(void *NotUsed, int argc, char** argv, char **
     return 0;
 }
 
-static int proceseaza_topul_general_callback(void *NotUsed, int argc, char** argv, char **azColName) {
+static int proceseaza_topul_general_callback(void *not_used_prt, int argc, char** argv, char **azColName) {
     char formatare_piesa[512];
     strcpy(formatare_piesa, "Titlu: ");
     strcat(formatare_piesa, argv[0]);
@@ -110,12 +107,12 @@ static int proceseaza_topul_general_callback(void *NotUsed, int argc, char** arg
     return 0;
 }
 
-static int proceseaza_genuri_melodii_callback(void *NotUsed, int argc, char** argv, char **azColName) {
+static int proceseaza_genuri_melodii_callback(void *not_used_prt, int argc, char** argv, char **azColName) {
     strcpy(lista_genuri[nr_genuri++], argv[0]);
     return 0;
 }
 
-static int filtreaza_top_dupa_gen_callback(void* NotUsed, int argc, char** argv, char **azColName) {
+static int filtreaza_top_dupa_gen_callback(void* not_used_prt, int argc, char** argv, char **azColName) {
     char formatare_piesa[512];
     strcpy(formatare_piesa, "Titlu: ");
     strcat(formatare_piesa, argv[0]);
@@ -128,7 +125,7 @@ static int filtreaza_top_dupa_gen_callback(void* NotUsed, int argc, char** argv,
     return 0;
 }
 
-static int afisare_lista_melodii_callback(void *NotUsed, int argc, char** argv, char** azColName) {
+static int afisare_lista_melodii_callback(void *not_used_prt, int argc, char** argv, char** azColName) {
     char formatare_piesa[512];
     strcpy(formatare_piesa, "Titlu: ");
     strcat(formatare_piesa, argv[0]);
@@ -139,7 +136,7 @@ static int afisare_lista_melodii_callback(void *NotUsed, int argc, char** argv, 
     return 0;
 }
 
-static int afisare_lista_utilizatori_callback(void* NotUsed, int argc, char** argv, char** azColName) {
+static int afisare_lista_utilizatori_callback(void* not_used_prt, int argc, char** argv, char** azColName) {
     char formatare_utilizator[128];
     strcpy(formatare_utilizator, "Id: ");
     strcat(formatare_utilizator, argv[0]);
@@ -155,12 +152,12 @@ static int afisare_lista_utilizatori_callback(void* NotUsed, int argc, char** ar
     return 0;
 }
 
-static int identificare_id_melodie_callback(void *NotUsed, int argc, char** argv, char** azColName) {
+static int identificare_id_melodie_callback(void *not_used_prt, int argc, char** argv, char** azColName) {
     strcpy(id_melodie, argv[0]);
     return 0;
 }
 
-static int afisare_comentarii_callback(void *NotUsed, int argc, char** argv, char** azColName) {
+static int afisare_comentarii_callback(void *not_used_prt, int argc, char** argv, char** azColName) {
     char formatare_piesa[3047];
     strcpy(formatare_piesa, "Autor: ");
     strcat(formatare_piesa, argv[0]);
@@ -200,8 +197,6 @@ int creare_cont(sqlite3* db, char* nume_utilizator, char* parola) {
         strcat(sql_query, parola);
         strcat(sql_query, "',");
         strcat(sql_query, " 0, 1, 1, DATE('NOW'))");
-        //printf("%s\n", sql_query);
-        //fflush(stdout);
         select_status = sqlite3_exec(db, sql_query, 0, 0, &mesaj_eroare);
         if (select_status != SQLITE_OK) {
             printf("Eroare la cautarea utilizatorului - %s!", mesaj_eroare);
@@ -226,6 +221,8 @@ void autentificare_utilizator(sqlite3* db, char* nume_utilizator, char* parola) 
 }
 
 char* itoa(int number) {
+    // deoarece in libraria standard din C nu este pusa la dispozitie o functie 
+    // care converteste un numarl la un char*, am creat una
     char* sir = (char*) malloc(8 * sizeof(char));
     int idx = 0;
     do {
@@ -573,74 +570,66 @@ void afisare_comentarii_melodie(int id_ordine_piesa) {
 }
 
 int main () {
-    struct sockaddr_in server;	// structura folosita de server
-    struct sockaddr_in from;	
-    int sd;		//descriptorul de socket 
-    int pid;
-    pthread_t th[100];    //Identificatorii thread-urilor care se vor crea
+    struct sockaddr_in server;
+    struct sockaddr_in from;
+
+    pthread_t th[100];
 	int i = 0;
 
+    int sd;
+    int pid;
+    
     int db_descriptor = sqlite3_open("top_music.db", &db); 
     if (db_descriptor) {
         perror("Eroare la conectarea cu baza de date!");
         return 0;
     }
   
-    /* crearea unui socket */
     if ((sd = socket (AF_INET, SOCK_STREAM, 0)) == -1) {
-        perror ("[server]Eroare la socket().\n");
+        perror ("Eroare la socket().\n");
         return errno;
     }
 
-    /* utilizarea optiunii SO_REUSEADDR */
     int on = 1;
     setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   
-    /* pregatirea structurilor de date */
     bzero (&server, sizeof (server));
     bzero (&from, sizeof (from));
   
-    /* umplem structura folosita de server */
-    /* stabilirea familiei de socket-uri */
+
     server.sin_family = AF_INET;	
-  
-    /* acceptam orice adresa */
-    server.sin_addr.s_addr = htonl (INADDR_ANY);
-  
-    /* utilizam un port utilizator */
+    server.sin_addr.s_addr = htonl (INADDR_ANY);  
     server.sin_port = htons (PORT);
   
-    /* atasam socketul */
+    /* atasam adresa la socket */
     if (bind (sd, (struct sockaddr *) &server, sizeof (struct sockaddr)) == -1) {
-        perror ("[server]Eroare la bind().\n");
+        perror ("Eroare la bind().\n");
         return errno;
     }
 
-    /* punem serverul sa asculte daca vin clienti sa se conecteze */
     if (listen (sd, 2) == -1) {
-        perror ("[server]Eroare la listen().\n");
+        perror ("Eroare la listen().\n");
         return errno;
     }
 
-    /* servim in mod concurent clientii...folosind thread-uri */
     while (1) {
         int client;
-        thData * td; //parametru functia executata de thread     
+        thData * td; // parametru functia executata de thread     
         int length = sizeof (from);
 
-        printf ("[server]Asteptam la portul %d...\n",PORT);
+        printf ("Asteptam la portul %d...\n", PORT);
         fflush (stdout);
 
         /* acceptam un client (stare blocanta pina la realizarea conexiunii) */
         if ( (client = accept (sd, (struct sockaddr *) &from, &length)) < 0) {
-	        perror ("[server]Eroare la accept().\n");
+	        perror ("Eroare la accept().\n");
 	        continue;
 	    }
 	
         /* s-a realizat conexiunea, se astepta mesajul */
         td=(struct thData*)malloc(sizeof(struct thData));	
-        td->idThread=i++;
-        td->cl=client;
+        td->idThread = i++;
+        td->cl = client;
 
         pthread_create(&th[i], NULL, &treat, td);	      
 	}

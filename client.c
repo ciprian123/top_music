@@ -20,10 +20,8 @@
 #include <arpa/inet.h>
 #include <time.h>
 
-/* codul de eroare returnat de anumite apeluri */
 extern int errno;
 
-/* portul de conectare la server*/
 int port;
 
 void afisare_meniu_basic() {
@@ -37,9 +35,9 @@ void afisare_meniu_basic() {
 
 void afisare_meniu_admin() {
     afisare_meniu_basic();
-    printf("* Pentru stergerea unei melodii introduceti `7`\n");                  
-    printf("* Pentru restrictionarea la vot a unui utilizator introduceti `8`\n"); 
-    printf("* Pentru restrictionarea de a comenta a unui utilizator introduceti `9`\n");
+    printf("** Pentru stergerea unei melodii introduceti `7`\n");                  
+    printf("** Pentru restrictionarea la vot a unui utilizator introduceti `8`\n"); 
+    printf("** Pentru restrictionarea de a comenta a unui utilizator introduceti `9`\n");
 }
 
 void trimite_melodie_la_server(int sd) {
@@ -80,24 +78,18 @@ int main (int argc, char *argv[]) {
     int sd;			            // descriptorul de socket
     struct sockaddr_in server;	// structura folosita pentru conectare 
   	
-    // mesajul trimis
-    /* exista toate argumentele in linia de comanda? */
     if (argc != 3) {
         printf ("Sintaxa: %s <adresa_server> <port>\n", argv[0]);
         return -1;
     }
 
-    /* stabilim portul */
     port = atoi (argv[2]);
-
-    /* cream socketul */
     if ((sd = socket (AF_INET, SOCK_STREAM, 0)) == -1) {
         perror ("Eroare la socket().\n");
         return errno;
     }
 
-    /* umplem structura folosita pentru realizarea conexiunii cu serverul */
-    /* familia socket-ului */
+
     server.sin_family = AF_INET;
   
     /* adresa IP a serverului */
@@ -106,7 +98,6 @@ int main (int argc, char *argv[]) {
     /* portul de conectare */
     server.sin_port = htons (port);
   
-    /* ne conectam la server */
     if (connect (sd, (struct sockaddr *) &server,sizeof (struct sockaddr)) == -1) {
         perror ("[client]Eroare la connect().\n");
         return errno;
